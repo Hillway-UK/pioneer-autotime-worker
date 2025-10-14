@@ -49,7 +49,7 @@ interface Worker {
 
 interface GuardResult {
   canAutoClockOut: boolean;
-  reason: 'OK' | 'CAP_MONTH' | 'CAP_ROLLING14' | 'CONSECUTIVE_BLOCK' | 'NO_CLOCK_IN' | 'NO_SHIFT' | 'ALREADY_CLOCKED_OUT' | 'UNKNOWN';
+  reason: 'OK' | 'NO_CLOCK_IN' | 'NO_SHIFT' | 'ALREADY_CLOCKED_OUT' | 'UNKNOWN';
 }
 
 interface ClockEntry {
@@ -57,6 +57,7 @@ interface ClockEntry {
   clock_in: string;
   clock_out: string | null;
   job_id: string;
+  auto_clockout_type?: string | null;
 }
 
 serve(async (req) => {
@@ -137,8 +138,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in check-clock-status:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: errorMessage,
       timestamp: new Date().toISOString()
     }), {
       status: 500,
@@ -375,17 +377,7 @@ async function handleAutoClockOut(
       // Log audit with reason
       await createAudit(supabase, worker.id, siteDate, false, checks.reason);
 
-      // If limit-related, send warning
-      const limitReasons = ['CAP_MONTH', 'CAP_ROLLING14', 'CONSECUTIVE_BLOCK'];
-      if (limitReasons.includes(checks.reason)) {
-        await sendNotification(
-          supabase,
-          worker.id,
-          '⚠️ Clock Out Now',
-          'Auto clock-out disabled due to frequency limits. Please clock out manually.',
-          'limit_warning'
-        );
-      }
+      // No limit warnings needed - constraints removed
       continue;
     }
 
@@ -428,8 +420,7 @@ async function handleAutoClockOut(
       continue;
     }
 
-    // Update counters
-    await incrementCounters(supabase, worker.id, siteDate);
+    // Counters removed - auto-clockout happens every time conditions are met
 
     // Log audit
     await createAudit(supabase, worker.id, siteDate, true, 'OK');
@@ -476,112 +467,15 @@ async function runGuardChecks(supabase: any, workerId: string, shiftDate: Date):
     return { canAutoClockOut: false, reason: 'ALREADY_CLOCKED_OUT' };
   }
 
-  // 3. Get/create counter record
-  const month = shiftDate.toISOString().slice(0, 7); // YYYY-MM
-  const counter = await getOrCreateCounter(supabase, workerId, month);
-  console.log(`  Guard: Counter check - monthly: ${counter.count_monthly}/3`);
-
-  // 4. Check monthly cap (≤3)
-  if (counter.count_monthly >= 3) {
-    console.log(`  Guard: CAP_MONTH - monthly limit reached (${counter.count_monthly})`);
-    return { canAutoClockOut: false, reason: 'CAP_MONTH' };
-  }
-
-  // 5. Check rolling 14-day cap (≤2)
-  const rolling14Count = await getRolling14DayCount(supabase, workerId, shiftDate);
-  console.log(`  Guard: Rolling 14-day check - count: ${rolling14Count}/2`);
-  if (rolling14Count >= 2) {
-    console.log(`  Guard: CAP_ROLLING14 - rolling 14-day limit reached (${rolling14Count})`);
-    return { canAutoClockOut: false, reason: 'CAP_ROLLING14' };
-  }
-
-  // 6. Check consecutive workdays
-  const yesterday = new Date(shiftDate);
-  yesterday.setDate(yesterday.getDate() - 1);
-  
-  const yesterdayAudit = await getAudit(supabase, workerId, yesterday);
-  if (yesterdayAudit?.performed) {
-    const yesterdayDOW = yesterday.getDay();
-    const weekdays = [1, 2, 3, 4, 5];
-    // Only block if yesterday was also a weekday (consecutive workday)
-    if (weekdays.includes(yesterdayDOW)) {
-      console.log(`  Guard: CONSECUTIVE_BLOCK - auto clocked-out yesterday (${yesterday.toISOString().split('T')[0]})`);
-      return { canAutoClockOut: false, reason: 'CONSECUTIVE_BLOCK' };
-    }
-  }
-
   console.log(`  Guard: OK - all checks passed`);
   return { canAutoClockOut: true, reason: 'OK' };
 }
 
 // ============================================================================
-// Counter Management
+// Counter Management - REMOVED
 // ============================================================================
-
-async function getOrCreateCounter(supabase: any, workerId: string, month: string) {
-  const { data: existing } = await supabase
-    .from('auto_clockout_counters')
-    .select('*')
-    .eq('worker_id', workerId)
-    .eq('month', month)
-    .maybeSingle();
-
-  if (existing) {
-    return existing;
-  }
-
-  // Create new counter
-  const { data: newCounter } = await supabase
-    .from('auto_clockout_counters')
-    .insert({
-      worker_id: workerId,
-      month: month,
-      count_monthly: 0,
-      rolling14_count: 0
-    })
-    .select()
-    .single();
-
-  return newCounter || { count_monthly: 0, rolling14_count: 0 };
-}
-
-async function incrementCounters(supabase: any, workerId: string, shiftDate: Date) {
-  const month = shiftDate.toISOString().slice(0, 7);
-  
-  const { error } = await supabase
-    .from('auto_clockout_counters')
-    .upsert({
-      worker_id: workerId,
-      month: month,
-      count_monthly: supabase.raw('COALESCE(count_monthly, 0) + 1'),
-      last_auto_clockout_at: new Date().toISOString(),
-      last_workday_auto: shiftDate.toISOString().split('T')[0],
-      updated_at: new Date().toISOString()
-    });
-
-  if (error) {
-    console.error('Error incrementing counters:', error);
-  }
-}
-
-async function getRolling14DayCount(supabase: any, workerId: string, shiftDate: Date): Promise<number> {
-  const fourteenDaysAgo = new Date(shiftDate);
-  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-  const { count, error } = await supabase
-    .from('auto_clockout_audit')
-    .select('*', { count: 'exact', head: true })
-    .eq('worker_id', workerId)
-    .eq('performed', true)
-    .gte('shift_date', fourteenDaysAgo.toISOString().split('T')[0]);
-
-  if (error) {
-    console.error('Error getting rolling 14 count:', error);
-    return 0;
-  }
-
-  return count || 0;
-}
+// Auto-clockout counters and limits have been removed.
+// Auto-clockout now happens every time conditions are met.
 
 // ============================================================================
 // Audit Functions
@@ -661,7 +555,7 @@ async function isWorkerClockedIn(supabase: any, workerId: string, siteDate: Date
 
 async function isWorkerStillClockedIn(supabase: any, workerId: string, siteDate: Date): Promise<boolean> {
   const entry = await getTodayEntry(supabase, workerId, siteDate);
-  return entry && !entry.clock_out;
+  return !!(entry && !entry.clock_out);
 }
 
 // ============================================================================

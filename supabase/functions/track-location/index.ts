@@ -310,12 +310,14 @@ Deno.serve(async (req) => {
     // 13. Send notification
     const clockOutTimeFormatted = clockOutTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const clockOutDateFormatted = clockOutTime.toLocaleDateString('en-GB');
+    const dedupeKey = `${payload.worker_id}:${payload.clock_entry_id}:geofence_auto_clockout`;
     
     await supabase.from('notifications').insert({
       worker_id: payload.worker_id,
       title: 'Auto Clocked-Out - Left Job Site',
       body: `You were automatically clocked out at ${clockOutTimeFormatted} on ${clockOutDateFormatted}.\n\nReason: You left the job site geofence area within 1 hour before your scheduled shift end time. Your location was detected ${distance.toFixed(0)}m from the site center (threshold: ${threshold}m).\n\nIf this timestamp is incorrect or you did not leave the site, please submit a Time Amendment request in the app.`,
       type: 'geofence_auto_clockout',
+      dedupe_key: dedupeKey,
       created_at: new Date().toISOString()
     });
 
@@ -332,7 +334,8 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in track-location:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
     });
