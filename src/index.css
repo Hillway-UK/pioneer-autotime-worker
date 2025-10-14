@@ -61,22 +61,26 @@ All colors MUST be HSL.
     --popover-foreground: 0 2% 30%; /* Cape Cod */
 
     /* AutoTime Theme - Material Design Palette */
-    --primary: 5 48% 36%; /* El Salva - reddish-brown */
+    --primary: 5 64% 29%; /* Mocha #78211a - Primary brand color */
     --primary-foreground: 0 0% 100%; /* White */
-    --primary-dark: 5 64% 29%; /* Mocha - deeper red-brown */
-    --autotime-primary: 5 48% 36%; /* #863630 - El Salva */
-    --autotime-primary-dark: 5 64% 29%; /* #78211a - Mocha */
-    --autotime-dark-grey: 0 2% 30%; /* #4c4d4d - Cape Cod */
-    --autotime-mid-grey: 5 7% 57%; /* #978c8b - Schooner */
+    --primary-dark: 5 76% 27%; /* Pueblo #7c1712 - Darker accent */
+    
+    --secondary: 5 48% 36%; /* El Salva #863630 - Secondary brand color */
+    --secondary-foreground: 0 0% 100%; /* White */
+    
+    /* AutoTime Extended Palette */
+    --schooner: 0 3% 59%; /* #978c8b - Medium gray */
+    --cape-cod: 0 2% 30%; /* #4c4d4d - Dark gray */
+    --jagged-ice: 180 33% 87%; /* #d0ecee - Light cyan blue */
+    --tundora: 0 0% 25%; /* #414141 - Very dark gray */
+    --pueblo: 5 76% 27%; /* #7c1712 - Dark red */
+    --mercury: 0 0% 91%; /* #e8e6e6 - Light gray */
     --autotime-light-grey: 0 6% 91%; /* #e8e6e6 - Mercury */
     --autotime-accent: 184 44% 87%; /* #d0ecee - Jagged Ice */
     --autotime-white: 0 0% 100%; /* #ffffff - White */
     --autotime-success: 142 76% 36%; /* Green for clock-in */
     --autotime-danger: 4 73% 28%; /* #7c1712 - Pueblo red */
     --autotime-warning: 43 96% 56%; /* Orange for warnings */
-
-    --secondary: 0 0% 78%; /* Silver - light gray */
-    --secondary-foreground: 0 2% 30%; /* Cape Cod */
 
     --muted: 0 6% 91%; /* Mercury */
     --muted-foreground: 5 7% 57%; /* Schooner */

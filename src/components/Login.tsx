@@ -213,40 +213,45 @@ export default function Login() {
   // Show loading while checking authentication
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#d0ecee' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking authentication...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Checking authentication...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#d0ecee' }}>
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <OrganizationLogo 
-            organizationLogoUrl={organizationLogoUrl}
-            size="large" 
-            className="justify-center" 
-          />
-        </div>
-        
-        <div className="bg-white rounded-2xl shadow-sm p-8">
+        <div className="bg-white rounded-2xl shadow-lg p-8 sm:p-10">
+          <div className="text-center mb-8">
+            <OrganizationLogo 
+              organizationLogoUrl={organizationLogoUrl}
+              size="large" 
+              className="justify-center mb-6" 
+            />
+            <h1 className="text-3xl font-bold mb-2" style={{ color: '#4c4d4d' }}>Manager Portal</h1>
+            <p className="text-base" style={{ color: '#978c8b' }}>Workforce Management System</p>
+          </div>
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
               <p className="text-red-700 text-sm font-body">{error}</p>
             </div>
           )}
           
-          <form onSubmit={handleLogin} className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-5">
             <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: '#414141' }}>
+                Email
+              </label>
               <input
                 type="email"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-black text-lg"
-                placeholder="Email address"
+                className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                style={{ borderColor: '#e8e6e6' }}
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={async (e) => {
@@ -267,28 +272,25 @@ export default function Login() {
             </div>
             
             <div>
+              <label className="block text-sm font-medium mb-2" style={{ color: '#414141' }}>
+                Password
+              </label>
               <input
                 type="password"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-black text-lg"
-                placeholder="Password"
+                className="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                style={{ borderColor: '#e8e6e6' }}
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
               />
             </div>
             
-            <label className="flex items-center space-x-2 text-sm">
-              <Checkbox 
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              />
-              <span>Remember me</span>
-            </label>
-            
             <button
               type="submit"
-              className="w-full py-4 bg-black hover:bg-gray-800 text-white rounded-xl font-semibold text-lg transform transition-all active:scale-95"
+              className="w-full py-3.5 text-white rounded-lg font-semibold transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: '#78211a' }}
               disabled={loading}
             >
               {loading ? 'Signing in...' : 'Sign In'}
@@ -300,7 +302,8 @@ export default function Login() {
               <DialogTrigger asChild>
                 <button
                   type="button"
-                  className="text-sm text-gray-600 hover:text-black transition-colors"
+                  className="text-sm transition-colors hover:underline"
+                  style={{ color: '#978c8b' }}
                 >
                   Forgot your password?
                 </button>
