@@ -636,12 +636,6 @@ export default function Timesheets() {
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate('/clock')}
-                className="p-2 text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
               <OrganizationLogo 
                 organizationLogoUrl={organizationLogoUrl}
                 size="medium" 
@@ -652,6 +646,13 @@ export default function Timesheets() {
                 <p className="text-sm text-primary-foreground/80">Timesheets</p>
               </div>
             </div>
+            
+            <button
+              onClick={() => navigate('/clock')}
+              className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ChevronLeft, Smartphone, Clock, FileText, Wallet, Edit, Lock, RefreshCw, MapPin, Bot, Share, Plus, Home, AlertCircle } from "lucide-react";
+import { ArrowLeft, Smartphone, Clock, FileText, Wallet, Edit, Lock, RefreshCw, MapPin, Bot, Share, Plus, Home, AlertCircle } from "lucide-react";
 import OrganizationLogo from "@/components/OrganizationLogo";
 import { GeofenceAutoClockoutInfo } from "@/components/GeofenceAutoClockoutInfo";
 import { useWorker } from "@/contexts/WorkerContext";
@@ -29,10 +29,10 @@ export default function Help() {
             </div>
             <button
               onClick={() => navigate('/clock')}
-              className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
+              className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-white/10 rounded-lg transition-colors"
               aria-label="Go back"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
           </div>
         </div>

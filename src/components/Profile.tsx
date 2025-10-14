@@ -46,7 +46,7 @@ export default function Profile() {
             </div>
             <button
               onClick={() => navigate('/clock')}
-              className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
+              className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-white/10 rounded-lg transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>

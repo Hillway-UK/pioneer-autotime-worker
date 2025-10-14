@@ -14,7 +14,7 @@ export default function InstallGuide() {
           <div className="flex items-center space-x-2">
             <button
               onClick={() => navigate("/")}
-              className="mr-4 p-2 hover:bg-primary-dark rounded-lg transition-colors duration-200"
+              className="mr-4 p-2 hover:bg-white/10 rounded-lg transition-colors duration-200"
             >
               <ChevronLeft className="w-6 h-6 text-primary-foreground" />
             </button>

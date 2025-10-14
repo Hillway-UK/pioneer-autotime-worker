@@ -225,20 +225,24 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <OrganizationLogo 
-            organizationLogoUrl={organizationLogoUrl}
-            size="large" 
-            className="justify-center" 
-          />
-        </div>
-        
-        <div className="bg-card rounded-2xl shadow-sm p-8">
-          {error && (
-            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
-              <p className="text-destructive text-sm">{error}</p>
-            </div>
-          )}
+        <div className="bg-card rounded-2xl shadow-lg overflow-hidden">
+          {/* Burgundy Header */}
+          <div className="bg-primary px-8 py-6 text-center">
+            <OrganizationLogo 
+              organizationLogoUrl={organizationLogoUrl}
+              size="large" 
+              className="justify-center mb-3" 
+            />
+            <h1 className="text-2xl font-bold text-primary-foreground">AutoTime</h1>
+          </div>
+          
+          {/* Login Form */}
+          <div className="p-8">
+            {error && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 mb-6">
+                <p className="text-destructive text-sm">{error}</p>
+              </div>
+            )}
           
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
@@ -295,8 +299,8 @@ export default function Login() {
             </button>
           </form>
           
-          <div className="mt-6 text-center">
-            <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+            <div className="mt-6 text-center">
+              <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
               <DialogTrigger asChild>
                 <button
                   type="button"
@@ -362,6 +366,7 @@ export default function Login() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </div>
       </div>
