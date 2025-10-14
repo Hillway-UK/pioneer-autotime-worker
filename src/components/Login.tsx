@@ -226,14 +226,19 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="max-w-md w-full">
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden">
-          {/* Burgundy Header */}
-          <div className="bg-primary px-8 py-6 text-center">
-            <OrganizationLogo 
-              organizationLogoUrl={organizationLogoUrl}
-              size="large" 
-              className="justify-center mb-3" 
-            />
-            <h1 className="text-2xl font-bold text-primary-foreground">AutoTime</h1>
+          {/* Header */}
+          <div className="bg-white px-8 py-6 text-center border-b">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <OrganizationLogo 
+                organizationLogoUrl={organizationLogoUrl}
+                size="large" 
+                className="justify-center" 
+              />
+              <div className="text-left">
+                <h1 className="text-2xl font-bold text-primary">AutoTime</h1>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Worker Time Management</p>
+              </div>
+            </div>
           </div>
           
           {/* Login Form */}
