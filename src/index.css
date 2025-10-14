@@ -51,45 +51,43 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 6% 91%; /* Mercury - soft warm gray */
-    --foreground: 0 2% 30%; /* Cape Cod - dark charcoal */
+    --background: 0 0% 95%; /* Light gray background */
+    --foreground: 0 0% 25%; /* Dark gray text */
 
     --card: 0 0% 100%; /* White */
-    --card-foreground: 0 2% 30%; /* Cape Cod */
+    --card-foreground: 0 0% 25%; /* Dark gray */
 
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 0 2% 30%; /* Cape Cod */
+    --popover-foreground: 0 0% 25%; /* Dark gray */
 
-    /* AutoTime Theme - Material Design Palette */
-    --primary: 5 48% 36%; /* El Salva - reddish-brown */
+    /* Pioneer Construction Theme */
+    --primary: 0 50% 35%; /* Deep burgundy red - Pioneer brand color */
     --primary-foreground: 0 0% 100%; /* White */
-    --primary-dark: 5 64% 29%; /* Mocha - deeper red-brown */
-    --autotime-primary: 5 48% 36%; /* #863630 - El Salva */
-    --autotime-primary-dark: 5 64% 29%; /* #78211a - Mocha */
-    --autotime-dark-grey: 0 2% 30%; /* #4c4d4d - Cape Cod */
-    --autotime-mid-grey: 5 7% 57%; /* #978c8b - Schooner */
-    --autotime-light-grey: 0 6% 91%; /* #e8e6e6 - Mercury */
-    --autotime-accent: 184 44% 87%; /* #d0ecee - Jagged Ice */
-    --autotime-white: 0 0% 100%; /* #ffffff - White */
-    --autotime-success: 142 76% 36%; /* Green for clock-in */
-    --autotime-danger: 4 73% 28%; /* #7c1712 - Pueblo red */
-    --autotime-warning: 43 96% 56%; /* Orange for warnings */
+    --primary-dark: 0 55% 30%; /* Darker burgundy */
+    --pioneer-red: 0 50% 35%; /* #8B2E2E - Deep burgundy */
+    --pioneer-gray: 0 0% 43%; /* #6D6E71 - Medium gray */
+    --pioneer-light-gray: 0 0% 85%; /* #D9D9D9 - Light gray */
+    --pioneer-dark-gray: 0 0% 25%; /* #404040 - Dark gray */
+    --pioneer-white: 0 0% 100%; /* #FFFFFF - White */
+    --pioneer-success: 142 76% 36%; /* Green for clock-in */
+    --pioneer-danger: 0 65% 45%; /* Red for errors */
+    --pioneer-warning: 43 96% 56%; /* Orange for warnings */
 
-    --secondary: 0 0% 78%; /* Silver - light gray */
-    --secondary-foreground: 0 2% 30%; /* Cape Cod */
+    --secondary: 0 0% 85%; /* Light gray */
+    --secondary-foreground: 0 0% 25%; /* Dark gray */
 
-    --muted: 0 6% 91%; /* Mercury */
-    --muted-foreground: 5 7% 57%; /* Schooner */
+    --muted: 0 0% 90%; /* Very light gray */
+    --muted-foreground: 0 0% 43%; /* Medium gray */
 
-    --accent: 184 44% 87%; /* Jagged Ice - subtle cyan */
-    --accent-foreground: 0 2% 30%; /* Cape Cod */
+    --accent: 0 0% 85%; /* Light gray accent */
+    --accent-foreground: 0 0% 25%; /* Dark gray */
 
-    --destructive: 4 73% 28%; /* Pueblo - deep red */
+    --destructive: 0 65% 45%; /* Red */
     --destructive-foreground: 0 0% 100%; /* White */
 
-    --border: 0 0% 78%; /* Silver */
-    --input: 0 6% 91%; /* Mercury */
-    --ring: 5 48% 36%; /* El Salva */
+    --border: 0 0% 85%; /* Light gray */
+    --input: 0 0% 95%; /* Very light gray */
+    --ring: 0 50% 35%; /* Pioneer red */
 
     --radius: 0.75rem;
 
@@ -98,23 +96,23 @@ All colors MUST be HSL.
     --success-foreground: 0 0% 100%;
     --warning: 43 96% 56%;
     --warning-foreground: 0 0% 100%;
-    --error: 4 73% 28%; /* Pueblo red */
+    --error: 0 65% 45%;
     --error-foreground: 0 0% 100%;
 
-    /* AutoTime Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(5 48% 36%), hsl(5 64% 29%));
+    /* Pioneer Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(0 50% 35%), hsl(0 55% 30%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 30%));
-    --gradient-error: linear-gradient(135deg, hsl(4 73% 28%), hsl(5 64% 29%));
-    --gradient-background: linear-gradient(135deg, hsl(0 2% 30%), hsl(5 7% 57%));
+    --gradient-error: linear-gradient(135deg, hsl(0 65% 45%), hsl(0 55% 40%));
+    --gradient-background: linear-gradient(135deg, hsl(0 0% 95%), hsl(0 0% 85%));
 
-    --sidebar-background: 0 6% 91%; /* Mercury */
-    --sidebar-foreground: 0 2% 30%; /* Cape Cod */
-    --sidebar-primary: 5 48% 36%; /* El Salva */
+    --sidebar-background: 0 0% 95%;
+    --sidebar-foreground: 0 0% 25%;
+    --sidebar-primary: 0 50% 35%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 184 44% 87%; /* Jagged Ice */
-    --sidebar-accent-foreground: 0 2% 30%;
-    --sidebar-border: 0 0% 78%; /* Silver */
-    --sidebar-ring: 5 48% 36%; /* El Salva */
+    --sidebar-accent: 0 0% 85%;
+    --sidebar-accent-foreground: 0 0% 25%;
+    --sidebar-border: 0 0% 85%;
+    --sidebar-ring: 0 50% 35%;
   }
 
   .dark {

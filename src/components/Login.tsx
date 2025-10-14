@@ -223,7 +223,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <OrganizationLogo 
@@ -233,10 +233,10 @@ export default function Login() {
           />
         </div>
         
-        <div className="bg-white rounded-2xl shadow-sm p-8">
+        <div className="bg-card rounded-2xl shadow-sm p-8">
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-              <p className="text-red-700 text-sm font-body">{error}</p>
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+              <p className="text-destructive text-sm">{error}</p>
             </div>
           )}
           
@@ -245,7 +245,7 @@ export default function Login() {
               <input
                 type="email"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-black text-lg"
+                className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-lg bg-background"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -270,7 +270,7 @@ export default function Login() {
               <input
                 type="password"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-black text-lg"
+                className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-lg bg-background"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -288,7 +288,7 @@ export default function Login() {
             
             <button
               type="submit"
-              className="w-full py-4 bg-black hover:bg-gray-800 text-white rounded-xl font-semibold text-lg transform transition-all active:scale-95"
+              className="w-full py-4 bg-primary hover:bg-primary-dark text-primary-foreground rounded-xl font-semibold text-lg transform transition-all active:scale-95"
               disabled={loading}
             >
               {loading ? 'Signing in...' : 'Sign In'}
@@ -300,7 +300,7 @@ export default function Login() {
               <DialogTrigger asChild>
                 <button
                   type="button"
-                  className="text-sm text-gray-600 hover:text-black transition-colors"
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
                 >
                   Forgot your password?
                 </button>
@@ -314,8 +314,8 @@ export default function Login() {
                 </DialogHeader>
                 
                 {forgotPasswordError && (
-                  <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                    <p className="text-red-700 text-sm">{forgotPasswordError}</p>
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                    <p className="text-destructive text-sm">{forgotPasswordError}</p>
                   </div>
                 )}
                 
@@ -327,7 +327,7 @@ export default function Login() {
                     <input
                       type="email"
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-black"
+                      className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring bg-background"
                       placeholder="Enter your email address"
                       value={forgotPasswordEmail}
                       onChange={(e) => setForgotPasswordEmail(e.target.value)}
