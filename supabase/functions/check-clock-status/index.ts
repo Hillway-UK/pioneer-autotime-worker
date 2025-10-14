@@ -57,6 +57,7 @@ interface ClockEntry {
   clock_in: string;
   clock_out: string | null;
   job_id: string;
+  auto_clocked_out?: boolean;
   auto_clockout_type?: string | null;
 }
 
@@ -381,9 +382,9 @@ async function handleAutoClockOut(
       continue;
     }
 
-    // Skip if already auto-clocked-out by geofence
-    if (entry.auto_clockout_type === 'geofence') {
-      console.log(`Worker ${worker.name} already auto-clocked-out by geofence, skipping time-based auto-clockout`);
+    // Skip if already auto-clocked-out by any mechanism
+    if (entry.auto_clocked_out) {
+      console.log(`Worker ${worker.name} already auto-clocked-out (type: ${entry.auto_clockout_type}), skipping time-based auto-clockout`);
       continue;
     }
 
@@ -637,9 +638,28 @@ async function sendNotification(
   try {
     // Generate dedupe key for idempotency
     const dateStr = shiftDate ? shiftDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-    const dedupeKey = `${workerId}:${dateStr}:${type}`;
+    const dedupeKey = type.includes('auto_clockout') 
+      ? `${workerId}:${dateStr}:auto_clockout_time_based`
+      : `${workerId}:${dateStr}:${type}`;
 
-    // Check if already sent (idempotency)
+    // For auto-clockout notifications, check if ANY auto-clockout notification was sent today
+    if (type.includes('auto_clockout')) {
+      const autoClockoutPattern = `${workerId}:${dateStr}:auto_clockout_%`;
+      
+      const { data: existingAutoClockout } = await supabase
+        .from('notifications')
+        .select('id, type, dedupe_key')
+        .eq('worker_id', workerId)
+        .like('dedupe_key', autoClockoutPattern)
+        .maybeSingle();
+
+      if (existingAutoClockout) {
+        console.log(`Auto-clockout notification already sent today: ${existingAutoClockout.type} (${existingAutoClockout.dedupe_key})`);
+        return;
+      }
+    }
+
+    // Check if already sent (idempotency for non-auto-clockout notifications)
     const { data: existing } = await supabase
       .from('notifications')
       .select('id')

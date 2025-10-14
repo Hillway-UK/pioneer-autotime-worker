@@ -310,7 +310,9 @@ Deno.serve(async (req) => {
     // 13. Send notification
     const clockOutTimeFormatted = clockOutTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const clockOutDateFormatted = clockOutTime.toLocaleDateString('en-GB');
-    const dedupeKey = `${payload.worker_id}:${payload.clock_entry_id}:geofence_auto_clockout`;
+    // Use date-based dedupe key to prevent multiple auto-clockout notifications per day
+    const clockOutDate = clockOutTime.toISOString().split('T')[0];
+    const dedupeKey = `${payload.worker_id}:${clockOutDate}:auto_clockout_geofence`;
     
     await supabase.from('notifications').insert({
       worker_id: payload.worker_id,
