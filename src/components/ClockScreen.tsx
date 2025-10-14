@@ -755,7 +755,7 @@ export default function ClockScreen() {
       </style>
       
       {/* Header */}
-      <header className="bg-black shadow-lg sticky top-0 z-50">
+      <header className="bg-primary shadow-lg sticky top-0 z-50">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Logo and Organization */}
@@ -766,7 +766,7 @@ export default function ClockScreen() {
                 showText={false} 
               />
               <div>
-                <h1 className="text-xl font-bold text-white">AutoTime</h1>
+                <h1 className="text-xl font-bold text-primary-foreground">AutoTime</h1>
               </div>
             </div>
             
@@ -780,7 +780,7 @@ export default function ClockScreen() {
                     toast.success("App is already up to date!");
                   }
                 }}
-                className="h-9 w-9 flex items-center justify-center text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
                 title="Refresh app"
               >
                 <RefreshCw className="h-5 w-5" />
@@ -788,7 +788,7 @@ export default function ClockScreen() {
               
               <button
                 onClick={() => navigate('/profile')}
-                className="h-9 w-9 flex items-center justify-center text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
               >
                 <User className="h-5 w-5" />
               </button>
@@ -797,7 +797,7 @@ export default function ClockScreen() {
               
               <button
                 onClick={() => navigate('/help')}
-                className="h-9 w-9 flex items-center justify-center text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
                 title="Help & FAQs"
               >
                 <Info className="h-5 w-5" />
@@ -805,7 +805,7 @@ export default function ClockScreen() {
               
               <button
                 onClick={handleLogout}
-                className="h-9 w-9 flex items-center justify-center text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -816,12 +816,12 @@ export default function ClockScreen() {
 
       <div className="p-4 space-y-6">
         {/* Current Time */}
-        <Card className="border-l-4 border-black shadow-md hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 text-center bg-black text-white">
+        <Card className="border-l-4 border-primary shadow-md hover:shadow-lg transition-shadow">
+          <CardContent className="p-4 text-center bg-primary text-primary-foreground">
             <div className="text-2xl font-heading font-bold">
               {currentTime.toLocaleTimeString()}
             </div>
-            <div className="text-sm text-white/80 font-body">
+            <div className="text-sm text-primary-foreground/80 font-body">
               {currentTime.toLocaleDateString()}
             </div>
           </CardContent>

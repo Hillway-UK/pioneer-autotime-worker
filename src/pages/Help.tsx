@@ -14,7 +14,7 @@ export default function Help() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-black text-white sticky top-0 z-50 shadow-lg">
+      <header className="bg-primary text-primary-foreground sticky top-0 z-50 shadow-lg">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -24,12 +24,12 @@ export default function Help() {
                 showText={false} 
               />
               <div>
-                <h1 className="text-xl font-bold text-white">AutoTime</h1>
+                <h1 className="text-xl font-bold text-primary-foreground">AutoTime</h1>
               </div>
             </div>
             <button
               onClick={() => navigate('/clock')}
-              className="h-9 w-9 flex items-center justify-center text-white hover:bg-gray-800 rounded-lg transition-colors"
+              className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
               aria-label="Go back"
             >
               <ChevronLeft className="h-5 w-5" />

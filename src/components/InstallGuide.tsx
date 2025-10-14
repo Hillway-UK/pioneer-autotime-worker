@@ -9,14 +9,14 @@ export default function InstallGuide() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-gradient-to-r from-[#702D30] to-[#420808] text-white p-4 shadow-lg">
+      <header className="bg-primary text-primary-foreground p-4 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <button
               onClick={() => navigate("/")}
-              className="mr-4 p-2 hover:bg-white/20 rounded-lg transition-colors duration-200"
+              className="mr-4 p-2 hover:bg-primary-dark rounded-lg transition-colors duration-200"
             >
-              <ChevronLeft className="w-6 h-6 text-white" />
+              <ChevronLeft className="w-6 h-6 text-primary-foreground" />
             </button>
             <Construction className="w-6 h-6" />
             <span className="font-heading font-bold text-xl">Install Guide</span>

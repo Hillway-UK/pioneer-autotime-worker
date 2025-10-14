@@ -632,13 +632,13 @@ export default function Timesheets() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-black shadow-lg sticky top-0 z-50">
+      <div className="bg-primary shadow-lg sticky top-0 z-50">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => navigate('/clock')}
-                className="p-2 text-white hover:bg-gray-800 rounded-lg transition-colors"
+                className="p-2 text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -648,8 +648,8 @@ export default function Timesheets() {
                 showText={false} 
               />
               <div>
-                <h1 className="text-xl font-bold text-white">AutoTime</h1>
-                <p className="text-sm text-gray-300">Timesheets</p>
+                <h1 className="text-xl font-bold text-primary-foreground">AutoTime</h1>
+                <p className="text-sm text-primary-foreground/80">Timesheets</p>
               </div>
             </div>
           </div>

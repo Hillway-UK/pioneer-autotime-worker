@@ -31,7 +31,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-black shadow-lg">
+      <div className="bg-primary shadow-lg">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -41,12 +41,12 @@ export default function Profile() {
                 showText={false} 
               />
               <div>
-                <h1 className="text-xl font-bold text-white">AutoTime</h1>
+                <h1 className="text-xl font-bold text-primary-foreground">AutoTime</h1>
               </div>
             </div>
             <button
               onClick={() => navigate('/clock')}
-              className="h-9 w-9 flex items-center justify-center text-white hover:bg-gray-800 rounded-lg transition-colors"
+              className="h-9 w-9 flex items-center justify-center text-primary-foreground hover:bg-primary-dark rounded-lg transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
