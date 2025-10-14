@@ -322,7 +322,7 @@ async function handleClockOutReminders(
 
     // Dynamic message based on worker's shift_end
     const title = getClockOutTitle(currentTime, worker.shift_end);
-    const body = `Shift ended at ${worker.shift_end}. Please clock out.`;
+    const body = `⏰ Reminder: Please clock out now. Your shift ended at ${worker.shift_end}.\n\nIf you don't clock out, the system will automatically clock you out 30 minutes after shift end.`;
     
     await sendNotification(supabase, worker.id, title, body, notifType, siteDate);
     await logNotification(supabase, worker.id, notifType, siteDate);
@@ -435,12 +435,15 @@ async function handleAutoClockOut(
     await createAudit(supabase, worker.id, siteDate, true, 'OK');
 
     // Send confirmation with worker's shift_end
+    const clockOutTimeFormatted = clockOutTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const clockOutDateFormatted = clockOutTime.toLocaleDateString('en-GB');
+    
     await sendNotification(
       supabase,
       worker.id,
-      'Auto Clocked-Out',
-      `You were auto clocked-out at ${currentTime} (30 minutes after ${worker.shift_end} shift end).`,
-      'auto_clockout_confirm',
+      'Auto Clocked-Out - No Clock-Out Detected',
+      `You were automatically clocked out at ${clockOutTimeFormatted} on ${clockOutDateFormatted}.\n\nReason: You did not clock out by your scheduled shift end time (${worker.shift_end}). The system waited 30 minutes and then automatically clocked you out.\n\nIf this timestamp is incorrect, please submit a Time Amendment request in the app.`,
+      'time_based_auto_clockout',
       siteDate
     );
 
