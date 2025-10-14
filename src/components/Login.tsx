@@ -225,10 +225,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="max-w-md w-full">
-        <div className="bg-card rounded-2xl shadow-lg overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden p-8">
           {/* Header */}
-          <div className="bg-white px-8 py-6 text-center border-b">
-            <div className="flex items-center justify-center gap-3 mb-2">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-3 mb-6">
               <OrganizationLogo 
                 organizationLogoUrl={organizationLogoUrl}
                 size="large" 
@@ -239,23 +239,26 @@ export default function Login() {
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Worker Time Management</p>
               </div>
             </div>
+            <h2 className="text-3xl font-bold text-gray-700">Worker Portal</h2>
           </div>
           
           {/* Login Form */}
-          <div className="p-8">
-            {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 mb-6">
-                <p className="text-destructive text-sm">{error}</p>
-              </div>
-            )}
-          
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 mb-6">
+              <p className="text-destructive text-sm">{error}</p>
+            </div>
+          )}
+        
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
               <input
                 type="email"
                 required
-                className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-lg bg-background"
-                placeholder="Email address"
+                className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={async (e) => {
@@ -276,36 +279,31 @@ export default function Login() {
             </div>
             
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
               <input
                 type="password"
                 required
-                className="w-full px-4 py-3 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring text-lg bg-background"
-                placeholder="Password"
+                className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring bg-background"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
               />
             </div>
             
-            <label className="flex items-center space-x-2 text-sm">
-              <Checkbox 
-                checked={rememberMe}
-                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-              />
-              <span>Remember me</span>
-            </label>
-            
             <button
               type="submit"
-              className="w-full py-4 bg-primary hover:bg-primary-dark text-primary-foreground rounded-xl font-semibold text-lg transform transition-all active:scale-95"
+              className="w-full py-4 bg-primary hover:bg-primary-dark text-primary-foreground rounded-lg font-semibold text-lg transform transition-all active:scale-95"
               disabled={loading}
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
           
-            <div className="mt-6 text-center">
-              <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+          <div className="mt-6 text-center">
+            <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
               <DialogTrigger asChild>
                 <button
                   type="button"
@@ -371,7 +369,6 @@ export default function Login() {
                 </form>
               </DialogContent>
             </Dialog>
-            </div>
           </div>
         </div>
       </div>
