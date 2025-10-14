@@ -52,20 +52,20 @@ All colors MUST be HSL.
 @layer base {
   :root {
     --background: 0 6% 91%; /* Mercury - soft warm gray */
-    --foreground: 0 2% 30%; /* Cape Cod - dark charcoal */
+    --foreground: 0 0% 0%; /* Black - tertiary color */
 
     --card: 0 0% 100%; /* White */
-    --card-foreground: 0 2% 30%; /* Cape Cod */
+    --card-foreground: 0 0% 0%; /* Black */
 
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 0 2% 30%; /* Cape Cod */
+    --popover-foreground: 0 0% 0%; /* Black */
 
     /* AutoTime Theme - Material Design Palette */
-    --primary: 5 48% 36%; /* El Salva - reddish-brown */
+    --primary: 5 64% 29%; /* Mocha - primary color */
     --primary-foreground: 0 0% 100%; /* White */
-    --primary-dark: 5 64% 29%; /* Mocha - deeper red-brown */
-    --autotime-primary: 5 48% 36%; /* #863630 - El Salva */
-    --autotime-primary-dark: 5 64% 29%; /* #78211a - Mocha */
+    --primary-dark: 5 70% 24%; /* Darker Mocha for hover states */
+    --autotime-primary: 5 64% 29%; /* #78211a - Mocha */
+    --autotime-primary-dark: 5 70% 24%; /* Darker Mocha */
     --autotime-dark-grey: 0 2% 30%; /* #4c4d4d - Cape Cod */
     --autotime-mid-grey: 5 7% 57%; /* #978c8b - Schooner */
     --autotime-light-grey: 0 6% 91%; /* #e8e6e6 - Mercury */
@@ -75,14 +75,14 @@ All colors MUST be HSL.
     --autotime-danger: 4 73% 28%; /* #7c1712 - Pueblo red */
     --autotime-warning: 43 96% 56%; /* Orange for warnings */
 
-    --secondary: 0 0% 78%; /* Silver - light gray */
-    --secondary-foreground: 0 2% 30%; /* Cape Cod */
+    --secondary: 5 48% 36%; /* El Salva - secondary color */
+    --secondary-foreground: 0 0% 100%; /* White */
 
     --muted: 0 6% 91%; /* Mercury */
     --muted-foreground: 5 7% 57%; /* Schooner */
 
     --accent: 184 44% 87%; /* Jagged Ice - subtle cyan */
-    --accent-foreground: 0 2% 30%; /* Cape Cod */
+    --accent-foreground: 0 0% 0%; /* Black */
 
     --destructive: 4 73% 28%; /* Pueblo - deep red */
     --destructive-foreground: 0 0% 100%; /* White */
@@ -102,19 +102,19 @@ All colors MUST be HSL.
     --error-foreground: 0 0% 100%;
 
     /* AutoTime Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(5 48% 36%), hsl(5 64% 29%));
+    --gradient-primary: linear-gradient(135deg, hsl(5 64% 29%), hsl(5 70% 24%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 30%));
     --gradient-error: linear-gradient(135deg, hsl(4 73% 28%), hsl(5 64% 29%));
-    --gradient-background: linear-gradient(135deg, hsl(0 2% 30%), hsl(5 7% 57%));
+    --gradient-background: linear-gradient(135deg, hsl(0 0% 0%), hsl(5 7% 57%));
 
-    --sidebar-background: 0 6% 91%; /* Mercury */
-    --sidebar-foreground: 0 2% 30%; /* Cape Cod */
-    --sidebar-primary: 5 48% 36%; /* El Salva */
+    --sidebar-background: 5 64% 29%; /* Mocha */
+    --sidebar-foreground: 0 0% 100%; /* White */
+    --sidebar-primary: 5 64% 29%; /* Mocha */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 184 44% 87%; /* Jagged Ice */
-    --sidebar-accent-foreground: 0 2% 30%;
-    --sidebar-border: 0 0% 78%; /* Silver */
-    --sidebar-ring: 5 48% 36%; /* El Salva */
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 5 70% 24%; /* Darker Mocha */
+    --sidebar-ring: 5 64% 29%; /* Mocha */
   }
 
   .dark {
