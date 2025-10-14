@@ -816,12 +816,12 @@ export default function ClockScreen() {
 
       <div className="p-4 space-y-6">
         {/* Current Time */}
-        <Card className="border-l-4 border-primary shadow-md hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 text-center bg-primary text-primary-foreground">
+        <Card className="border-l-4 border-gray-400 shadow-md hover:shadow-lg transition-shadow">
+          <CardContent className="p-4 text-center bg-gray-400 text-white">
             <div className="text-2xl font-heading font-bold">
               {currentTime.toLocaleTimeString()}
             </div>
-            <div className="text-sm text-primary-foreground/80 font-body">
+            <div className="text-sm text-white/80 font-body">
               {currentTime.toLocaleDateString()}
             </div>
           </CardContent>
@@ -951,7 +951,7 @@ export default function ClockScreen() {
         {/* Timesheet Navigation */}
         <button
           onClick={() => navigate('/timesheets')}
-          className="w-full p-4 bg-black hover:bg-gray-800 text-white rounded-xl font-medium transition-colors flex items-center justify-center space-x-2"
+          className="w-full p-4 bg-primary hover:bg-primary-dark text-primary-foreground rounded-xl font-medium transition-colors flex items-center justify-center space-x-2"
         >
           <FileText className="h-5 w-5" />
           <span>View Timesheets</span>

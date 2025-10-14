@@ -223,7 +223,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="max-w-md w-full">
         <div className="bg-card rounded-2xl shadow-lg overflow-hidden">
           {/* Burgundy Header */}
