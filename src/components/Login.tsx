@@ -213,7 +213,7 @@ export default function Login() {
   // Show loading while checking authentication
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#d0ecee' }}>
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Checking authentication...</p>
@@ -223,7 +223,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#d0ecee' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-lg p-8 sm:p-10">
           <div className="text-center mb-8">
