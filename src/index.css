@@ -61,10 +61,10 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 25%; /* Dark gray */
 
     /* Pioneer Construction Theme */
-    --primary: 0 50% 35%; /* Deep burgundy red - Pioneer brand color */
+    --primary: 358 42% 31%; /* Maroon #702E30 - Pioneer brand color */
     --primary-foreground: 0 0% 100%; /* White */
-    --primary-dark: 0 55% 30%; /* Darker burgundy */
-    --pioneer-red: 0 50% 35%; /* #8B2E2E - Deep burgundy */
+    --primary-dark: 358 42% 25%; /* Darker maroon */
+    --pioneer-red: 358 42% 31%; /* #702E30 - Maroon */
     --pioneer-gray: 0 0% 43%; /* #6D6E71 - Medium gray */
     --pioneer-light-gray: 0 0% 85%; /* #D9D9D9 - Light gray */
     --pioneer-dark-gray: 0 0% 25%; /* #404040 - Dark gray */
@@ -87,7 +87,7 @@ All colors MUST be HSL.
 
     --border: 0 0% 85%; /* Light gray */
     --input: 0 0% 95%; /* Very light gray */
-    --ring: 0 50% 35%; /* Pioneer red */
+    --ring: 358 42% 31%; /* Pioneer red */
 
     --radius: 0.75rem;
 
@@ -100,19 +100,19 @@ All colors MUST be HSL.
     --error-foreground: 0 0% 100%;
 
     /* Pioneer Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(0 50% 35%), hsl(0 55% 30%));
+    --gradient-primary: linear-gradient(135deg, hsl(358 42% 31%), hsl(358 42% 25%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 30%));
     --gradient-error: linear-gradient(135deg, hsl(0 65% 45%), hsl(0 55% 40%));
     --gradient-background: linear-gradient(135deg, hsl(0 0% 95%), hsl(0 0% 85%));
 
     --sidebar-background: 0 0% 95%;
     --sidebar-foreground: 0 0% 25%;
-    --sidebar-primary: 0 50% 35%;
+    --sidebar-primary: 358 42% 31%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 85%;
     --sidebar-accent-foreground: 0 0% 25%;
     --sidebar-border: 0 0% 85%;
-    --sidebar-ring: 0 50% 35%;
+    --sidebar-ring: 358 42% 31%;
   }
 
   .dark {
