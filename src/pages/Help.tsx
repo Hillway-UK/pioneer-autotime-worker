@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Smartphone, Clock, FileText, Wallet, Edit, Lock, RefreshCw, MapPin, Bot, Share, Plus, Home, AlertCircle } from "lucide-react";
+import { ArrowLeft, Smartphone, Clock, FileText, Wallet, Edit, Lock, RefreshCw, MapPin, Bot, Share, Plus, Home, AlertCircle, Video } from "lucide-react";
 import OrganizationLogo from "@/components/OrganizationLogo";
 import { GeofenceAutoClockoutInfo } from "@/components/GeofenceAutoClockoutInfo";
 import { useWorker } from "@/contexts/WorkerContext";
@@ -50,6 +50,170 @@ export default function Help() {
           <Card className="border-primary/20">
             <CardContent className="p-6">
               <Accordion type="single" collapsible className="w-full">
+                
+                {/* Watch How-To Tutorials */}
+                <AccordionItem value="watch-tutorials">
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-3">
+                      <Video className="h-5 w-5 text-primary" />
+                      <span className="text-left">🎥 Watch How-To Tutorials</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Need a quick walkthrough? Watch these short tutorials to learn the most common tasks in the Worker App.
+                    </p>
+
+                    {/* Nested Accordion for Tutorial Videos */}
+                    <Accordion type="single" collapsible className="w-full pl-2">
+                      
+                      <AccordionItem value="tutorial-login">
+                        <AccordionTrigger className="text-sm">
+                          How to Login in on Pioneer AutoTime Worker App
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Login_In_on_Pioneer_Autotime_Worker_App__C91BurvyQ1ivh9hNFe8geQ?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-update">
+                        <AccordionTrigger className="text-sm">
+                          How to Update Pioneer AutoTime Worker App
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Update_Pioneer_AutoTime_Worker_App__EdflucEQRTWMgwJko8jxnw?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-clock-in">
+                        <AccordionTrigger className="text-sm">
+                          How to Clock In to a Job Site
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Clock_In_To_A_Job_Site__hOm41gxmROSSjpxL0JN68A?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-clock-out">
+                        <AccordionTrigger className="text-sm">
+                          How to Clock Out and Submit Expenses
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Clock_Out_and_Submit_Expenses_on_Pioneer_Autotime__THELG6PiRzG26fhz_sqfQA?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-password">
+                        <AccordionTrigger className="text-sm">
+                          How to Change Password
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Change_Password_on_Pioneer_Autotime__ivrheUIlRxi150NL7W6i_w?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-amendment">
+                        <AccordionTrigger className="text-sm">
+                          How to Request or Update a Timesheet Amendment
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Request_or_Update_a_Timesheet_Amendment__napjI2gtSLODrepteToE8Q?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-notifications">
+                        <AccordionTrigger className="text-sm">
+                          How to Check In-App Notifications
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Check_In-App_Notifications_of_Pioneer_AutoTime__6F8tMpqJR4CmzbnLTCCkcw?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-faq">
+                        <AccordionTrigger className="text-sm">
+                          How to Open FAQ and Help Page
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Open_FAQ_and_Help_Page__O-f6SeIMT6GoVhILB3G26A?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                      <AccordionItem value="tutorial-expense">
+                        <AccordionTrigger className="text-sm">
+                          How to Add Expense to Timesheet
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <iframe 
+                            src="https://scribehow.com/embed/How_to_Add_Expense_to_Timesheet__jYDDmiHISbu2RZC3JZTFRA?as=video" 
+                            width="100%" 
+                            height="640" 
+                            allow="fullscreen" 
+                            style={{ aspectRatio: '16 / 9', border: 0, minHeight: '480px', borderRadius: '8px' }}
+                            loading="lazy"
+                          />
+                        </AccordionContent>
+                      </AccordionItem>
+
+                    </Accordion>
+                  </AccordionContent>
+                </AccordionItem>
                 
                 {/* 1. How to Download the App */}
                 <AccordionItem value="download-app">
