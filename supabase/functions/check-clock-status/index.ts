@@ -82,6 +82,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log('check-clock-status function invoked - JWT verification disabled');
+    
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
