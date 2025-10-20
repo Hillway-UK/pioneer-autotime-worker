@@ -136,6 +136,19 @@ export const WorkerProvider: React.FC<WorkerProviderProps> = ({ children }) => {
 
   useEffect(() => {
     fetchWorker();
+
+    // Listen for auth changes to keep worker data in sync after login/logout
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        fetchWorker();
+      } else if (event === 'SIGNED_OUT') {
+        setWorker(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
