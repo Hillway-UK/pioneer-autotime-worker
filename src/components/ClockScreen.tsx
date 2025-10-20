@@ -11,6 +11,7 @@ import PWAInstallDialog from '@/components/PWAInstallDialog';
 import NotificationPanel from '@/components/NotificationPanel';
 import { useWorker } from '@/contexts/WorkerContext';
 import { useUpdate } from '@/contexts/UpdateContext';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface Worker {
   id: string;
@@ -735,7 +736,13 @@ export default function ClockScreen() {
     }
   };
 
-  if (!worker) return null;
+  if (!worker || workerLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <LoadingSpinner type="verification" message="Loading your dashboard..." />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-safe">
