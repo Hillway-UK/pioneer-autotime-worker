@@ -10,6 +10,7 @@ import { Loader2, AlertCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import OrganizationLogo from "@/components/OrganizationLogo";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 const emailSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -220,11 +221,8 @@ export default function Login() {
   // Show loading while checking authentication
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-gray-600">Checking authentication...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <LoadingSpinner type="verification" message="Checking your session..." />
       </div>
     );
   }
