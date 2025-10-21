@@ -432,14 +432,20 @@ async function handleAutoClockOut(
     const clockOutTimeFormatted = clockOutTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     const clockOutDateFormatted = clockOutTime.toLocaleDateString('en-GB');
     
+    const notificationTitle = 'Auto Clocked-Out - No Clock-Out Detected';
+    const notificationBody = `You were automatically clocked out at ${clockOutTimeFormatted} on ${clockOutDateFormatted}.\n\nReason: You did not clock out by your scheduled shift end time (${worker.shift_end}). The system waited 30 minutes and then automatically clocked you out.\n\nIf this timestamp is incorrect, please submit a Time Amendment request in the app.`;
+    
     await sendNotification(
       supabase,
       worker.id,
-      'Auto Clocked-Out - No Clock-Out Detected',
-      `You were automatically clocked out at ${clockOutTimeFormatted} on ${clockOutDateFormatted}.\n\nReason: You did not clock out by your scheduled shift end time (${worker.shift_end}). The system waited 30 minutes and then automatically clocked you out.\n\nIf this timestamp is incorrect, please submit a Time Amendment request in the app.`,
+      notificationTitle,
+      notificationBody,
       'time_based_auto_clockout',
       siteDate
     );
+    
+    // Also send push notification
+    await sendPushNotification(supabase, worker.id, notificationTitle, notificationBody);
 
     // Cancel any remaining clock-out reminders
     await cancelNotifications(supabase, worker.id, siteDate, `clock_out_.*_shift${worker.shift_end.replace(':', '')}`);
@@ -728,4 +734,41 @@ function getClockOutTitle(currentTime: string, shiftEnd: string): string {
   if (diff === 15) return '🏠 Time to Clock Out';
   
   return 'Clock Out Reminder';
+}
+
+// ============================================================================
+// Push Notification Helper
+// ============================================================================
+
+async function sendPushNotification(
+  supabase: any,
+  workerId: string,
+  title: string,
+  body: string
+) {
+  try {
+    // Get worker's push token
+    const { data: prefs } = await supabase
+      .from('notification_preferences')
+      .select('push_token')
+      .eq('worker_id', workerId)
+      .maybeSingle();
+
+    if (!prefs?.push_token) {
+      console.log(`No push token found for worker ${workerId}`);
+      return;
+    }
+
+    // Send push notification via service worker
+    // Note: This is a best-effort attempt - if it fails, the in-app notification will still work
+    console.log(`Sending push notification to worker ${workerId}`);
+    
+    // In a real implementation, you would use a push notification service here
+    // For now, we'll just log it
+    console.log('Push notification payload:', { title, body, token: prefs.push_token });
+    
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+    // Don't throw - push notifications are optional
+  }
 }

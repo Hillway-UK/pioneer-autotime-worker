@@ -314,14 +314,20 @@ Deno.serve(async (req) => {
     const clockOutDate = clockOutTime.toISOString().split('T')[0];
     const dedupeKey = `${payload.worker_id}:${clockOutDate}:auto_clockout_geofence`;
     
+    const notificationTitle = 'Auto Clocked-Out - Left Job Site';
+    const notificationBody = `You were automatically clocked out at ${clockOutTimeFormatted} on ${clockOutDateFormatted}.\n\nReason: You left the job site geofence area within 1 hour before your scheduled shift end time. Your location was detected ${distance.toFixed(0)}m from the site center (threshold: ${threshold}m).\n\nIf this timestamp is incorrect or you did not leave the site, please submit a Time Amendment request in the app.`;
+    
     await supabase.from('notifications').insert({
       worker_id: payload.worker_id,
-      title: 'Auto Clocked-Out - Left Job Site',
-      body: `You were automatically clocked out at ${clockOutTimeFormatted} on ${clockOutDateFormatted}.\n\nReason: You left the job site geofence area within 1 hour before your scheduled shift end time. Your location was detected ${distance.toFixed(0)}m from the site center (threshold: ${threshold}m).\n\nIf this timestamp is incorrect or you did not leave the site, please submit a Time Amendment request in the app.`,
+      title: notificationTitle,
+      body: notificationBody,
       type: 'geofence_auto_clockout',
       dedupe_key: dedupeKey,
       created_at: new Date().toISOString()
     });
+
+    // Also send push notification
+    await sendPushNotification(supabase, payload.worker_id, notificationTitle, notificationBody);
 
     console.log('Geofence auto-clock-out completed successfully');
 
@@ -403,4 +409,37 @@ function checkLastHourWindow(clockInIso: string, shiftEnd: string): boolean {
   
   // Check if current time is within the window
   return now >= windowStart && now <= shiftEndTime;
+}
+
+async function sendPushNotification(
+  supabase: any,
+  workerId: string,
+  title: string,
+  body: string
+) {
+  try {
+    // Get worker's push token
+    const { data: prefs } = await supabase
+      .from('notification_preferences')
+      .select('push_token')
+      .eq('worker_id', workerId)
+      .maybeSingle();
+
+    if (!prefs?.push_token) {
+      console.log(`No push token found for worker ${workerId}`);
+      return;
+    }
+
+    // Send push notification via service worker
+    // Note: This is a best-effort attempt - if it fails, the in-app notification will still work
+    console.log(`Sending push notification to worker ${workerId}`);
+    
+    // In a real implementation, you would use a push notification service here
+    // For now, we'll just log it
+    console.log('Push notification payload:', { title, body, token: prefs.push_token });
+    
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+    // Don't throw - push notifications are optional
+  }
 }
