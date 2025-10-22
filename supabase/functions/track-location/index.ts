@@ -129,20 +129,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate and normalize shift_end time (supports 24h and 12h formats)
-    const parsedShift = parseShiftEnd(worker.shift_end);
-    if (!parsedShift) {
-      console.error('Invalid shift_end format:', worker.shift_end);
-      return new Response(JSON.stringify({ 
-        status: 'invalid_shift_end',
-        error: 'shift_end must be like HH:MM, HH:MM:SS, or h:mm AM/PM'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
-      });
-    }
+// Accept both HH:MM and HH:MM:SS
+if (!/^\d{2}:\d{2}(:\d{2})?$/.test(worker.shift_end)) {
+  console.error('Invalid shift_end format:', worker.shift_end);
+  return new Response(JSON.stringify({
+    status: 'invalid_shift_end',
+    error: 'shift_end must be in HH:MM or HH:MM:SS format'
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 400
+  });
+}
 
-    const isInLastHour = checkLastHourWindow(clockEntry.clock_in, worker.shift_end);
+// Trim to HH:MM for consistency
+const [shiftHour, shiftMin] = worker.shift_end.split(':').map(Number);
+const cleanShiftEnd = `${String(shiftHour).padStart(2, '0')}:${String(shiftMin).padStart(2, '0')}`;
+
+const isInLastHour = checkLastHourWindow(clockEntry.clock_in, cleanShiftEnd);
     
     console.log('Last hour window result:', {
       isInLastHour,
