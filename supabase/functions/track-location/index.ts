@@ -129,9 +129,21 @@ Deno.serve(async (req) => {
       });
     }
 
-// Accept both HH:MM and HH:MM:SS
-if (!/^\d{2}:\d{2}(:\d{2})?$/.test(worker.shift_end)) {
-  console.error('Invalid shift_end format:', worker.shift_end);
+// --- SHIFT END VALIDATION ---
+let shiftEndRaw = worker.shift_end?.trim();
+
+if (!shiftEndRaw) {
+  console.error('Missing shift_end');
+  return new Response(JSON.stringify({ status: 'no_shift_end' }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 200
+  });
+}
+
+// Accept both HH:MM and HH:MM:SS formats
+const match = shiftEndRaw.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+if (!match) {
+  console.error('Invalid shift_end format:', shiftEndRaw);
   return new Response(JSON.stringify({
     status: 'invalid_shift_end',
     error: 'shift_end must be in HH:MM or HH:MM:SS format'
@@ -141,11 +153,13 @@ if (!/^\d{2}:\d{2}(:\d{2})?$/.test(worker.shift_end)) {
   });
 }
 
-// Trim to HH:MM for consistency
-const [shiftHour, shiftMin] = worker.shift_end.split(':').map(Number);
-const cleanShiftEnd = `${String(shiftHour).padStart(2, '0')}:${String(shiftMin).padStart(2, '0')}`;
+// Normalize to HH:MM (ignore seconds if present)
+const shiftHour = parseInt(match[1], 10);
+const shiftMin = parseInt(match[2], 10);
+const normalizedShiftEnd = `${String(shiftHour).padStart(2, '0')}:${String(shiftMin).padStart(2, '0')}`;
 
-const isInLastHour = checkLastHourWindow(clockEntry.clock_in, cleanShiftEnd);
+// Continue check
+const isInLastHour = checkLastHourWindow(clockEntry.clock_in, normalizedShiftEnd);
     
     console.log('Last hour window result:', {
       isInLastHour,
