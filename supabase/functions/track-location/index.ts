@@ -129,12 +129,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate shift_end format (accepts both HH:MM and HH:MM:SS)
-    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(worker.shift_end)) {
+    // Validate and normalize shift_end time (supports 24h and 12h formats)
+    const parsedShift = parseShiftEnd(worker.shift_end);
+    if (!parsedShift) {
       console.error('Invalid shift_end format:', worker.shift_end);
       return new Response(JSON.stringify({ 
         status: 'invalid_shift_end',
-        error: 'shift_end must be in HH:MM or HH:MM:SS format'
+        error: 'shift_end must be like HH:MM, HH:MM:SS, or h:mm AM/PM'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400
@@ -386,17 +387,46 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c; // Distance in meters
 }
 
+function parseShiftEnd(shiftEnd: string): { hour: number; minute: number } | null {
+  const s = shiftEnd.trim().toLowerCase();
+
+  // 24h format: HH:MM or HH:MM:SS
+  let m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (m) {
+    const hour = parseInt(m[1], 10);
+    const minute = parseInt(m[2], 10);
+    if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) return { hour, minute };
+    return null;
+  }
+
+  // 12h format: h[:mm] AM/PM
+  m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+  if (m) {
+    let hour = parseInt(m[1], 10);
+    const minute = m[2] ? parseInt(m[2], 10) : 0;
+    if (hour < 1 || hour > 12 || minute < 0 || minute > 59) return null;
+    const meridiem = m[3];
+    if (meridiem === 'pm' && hour !== 12) hour += 12;
+    if (meridiem === 'am' && hour === 12) hour = 0;
+    return { hour, minute };
+  }
+
+  return null;
+}
+
 function checkLastHourWindow(clockInIso: string, shiftEnd: string): boolean {
   const now = new Date();
   
-  // Parse shift_end time (accepts both HH:MM and HH:MM:SS formats)
-  const timeParts = shiftEnd.split(':').map(Number);
-  const [shiftHour, shiftMin] = timeParts;
+  const parsed = parseShiftEnd(shiftEnd);
+  if (!parsed) {
+    console.error('Invalid shift_end format in checkLastHourWindow:', shiftEnd);
+    return false;
+  }
   
   // CRITICAL FIX: Create shift end datetime for TODAY (current date), not clockIn date
   // This ensures the check works correctly even if worker stays clocked in overnight
   const shiftEndTime = new Date();
-  shiftEndTime.setHours(shiftHour, shiftMin, 0, 0);
+  shiftEndTime.setHours(parsed.hour, parsed.minute, 0, 0);
   
   // Calculate last hour window start (shift_end - 60 minutes)
   const windowStart = new Date(shiftEndTime.getTime() - AUTO_WINDOW_MINUTES * 60 * 1000);
