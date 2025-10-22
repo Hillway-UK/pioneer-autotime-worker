@@ -188,12 +188,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log("EXIT DETECTED! Grace period starting...", {
-      grace_minutes: GRACE_MINUTES,
-      will_check_at: new Date(Date.now() + GRACE_MINUTES * 60 * 1000).toISOString(),
-    });
+    console.log("EXIT DETECTED! Recording exit event...");
 
-    // 8. Record exit detected
+    // 8. Record exit detected - cron job will handle the rest
     await supabase.from("geofence_events").insert({
       worker_id: payload.worker_id,
       clock_entry_id: payload.clock_entry_id,
@@ -208,147 +205,14 @@ Deno.serve(async (req) => {
       timestamp: payload.timestamp,
     });
 
-    // 9. Wait for grace period (4 minutes) - check for re-entry
-    await new Promise((resolve) => setTimeout(resolve, GRACE_MINUTES * 60 * 1000));
-
-    console.log("Grace period complete. Checking for re-entry...");
-
-    // Check if worker re-entered
-    const { data: reentryEvents } = await supabase
-      .from("geofence_events")
-      .select("*")
-      .eq("clock_entry_id", payload.clock_entry_id)
-      .eq("event_type", "location_fix")
-      .gte("timestamp", payload.timestamp)
-      .order("timestamp", { ascending: false })
-      .limit(5);
-
-    if (reentryEvents && reentryEvents.length > 0) {
-      const reenteredInside = reentryEvents.some((e) => e.distance_from_center < job.geofence_radius);
-      if (reenteredInside) {
-        console.log("Worker re-entered during grace period");
-        await supabase.from("geofence_events").insert({
-          worker_id: payload.worker_id,
-          clock_entry_id: payload.clock_entry_id,
-          shift_date: shiftDate,
-          event_type: "re_entry",
-          latitude: reentryEvents[0].latitude,
-          longitude: reentryEvents[0].longitude,
-          accuracy: reentryEvents[0].accuracy,
-          distance_from_center: reentryEvents[0].distance_from_center,
-          job_radius: job.geofence_radius,
-          safe_out_threshold: threshold,
-          timestamp: reentryEvents[0].timestamp,
-        });
-        return new Response(JSON.stringify({ status: "re_entered" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-    }
-
-    console.log("No re-entry detected. Waiting for race buffer...");
-
-    // 10. Wait for race buffer (60 seconds)
-    await new Promise((resolve) => setTimeout(resolve, RACE_BUFFER_SEC * 1000));
-
-    // Check if manual clock-out happened
-    const { data: updatedEntry } = await supabase
-      .from("clock_entries")
-      .select("clock_out, auto_clocked_out")
-      .eq("id", payload.clock_entry_id)
-      .single();
-
-    if (updatedEntry?.clock_out && !updatedEntry.auto_clocked_out) {
-      console.log("Manual clock-out detected, skipping auto-clock-out");
-      return new Response(JSON.stringify({ status: "manual_clockout" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    // 11. Perform auto-clock-out
-    const clockOutTime = new Date(payload.timestamp);
-    const clockInTime = new Date(clockEntry.clock_in);
-    const totalHours = (clockOutTime.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
-
-    console.log("Performing auto-clockout...", {
-      clock_out_time: clockOutTime.toISOString(),
-      total_hours: totalHours.toFixed(2),
-    });
-
-    const { error: updateError } = await supabase
-      .from("clock_entries")
-      .update({
-        clock_out: clockOutTime.toISOString(),
-        clock_out_lat: payload.latitude,
-        clock_out_lng: payload.longitude,
-        auto_clocked_out: true,
-        auto_clockout_type: "geofence",
-        geofence_exit_data: {
-          distance: distance,
-          accuracy: payload.accuracy,
-          threshold: threshold,
-          radius: job.geofence_radius,
-        },
-        total_hours: totalHours,
-        notes: `Auto clocked-out by geofence exit at ${clockOutTime.toLocaleTimeString()} (left job site)`,
-      })
-      .eq("id", payload.clock_entry_id)
-      .is("clock_out", null);
-
-    if (updateError) {
-      console.error("Error updating clock entry:", updateError);
-      return new Response(JSON.stringify({ error: "Failed to auto-clock-out" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
-
-    // 12. Record exit confirmed
-    await supabase.from("geofence_events").insert({
-      worker_id: payload.worker_id,
-      clock_entry_id: payload.clock_entry_id,
-      shift_date: shiftDate,
-      event_type: "exit_confirmed",
-      latitude: payload.latitude,
-      longitude: payload.longitude,
-      accuracy: payload.accuracy,
-      distance_from_center: distance,
-      job_radius: job.geofence_radius,
-      safe_out_threshold: threshold,
-      timestamp: clockOutTime.toISOString(),
-    });
-
-    // 13. Send notification
-    const clockOutTimeFormatted = clockOutTime.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-    const clockOutDateFormatted = clockOutTime.toLocaleDateString("en-GB");
-    // Use date-based dedupe key to prevent multiple auto-clockout notifications per day
-    const clockOutDate = clockOutTime.toISOString().split("T")[0];
-    const dedupeKey = `${payload.worker_id}:${clockOutDate}:auto_clockout_geofence`;
-
-    const notificationTitle = "Auto Clocked-Out - Left Job Site";
-    const notificationBody = `You were automatically clocked out at ${clockOutTimeFormatted} on ${clockOutDateFormatted}.\n\nReason: You left the job site geofence area within 1 hour before your scheduled shift end time. Your location was detected ${distance.toFixed(0)}m from the site center (threshold: ${threshold}m).\n\nIf this timestamp is incorrect or you did not leave the site, please submit a Time Amendment request in the app.`;
-
-    await supabase.from("notifications").insert({
-      worker_id: payload.worker_id,
-      title: notificationTitle,
-      body: notificationBody,
-      type: "geofence_auto_clockout",
-      dedupe_key: dedupeKey,
-      created_at: new Date().toISOString(),
-    });
-
-    // Also send push notification
-    await sendPushNotification(supabase, payload.worker_id, notificationTitle, notificationBody);
-
-    console.log("Geofence auto-clock-out completed successfully");
+    console.log("Exit detected event recorded. Cron job will process auto-clockout after grace period.");
 
     return new Response(
       JSON.stringify({
-        status: "auto_clocked_out",
-        clock_out_time: clockOutTime.toISOString(),
-        total_hours: totalHours,
+        status: "exit_detected",
+        message: "Exit recorded. Auto-clockout will be processed by cron job after grace period.",
+        distance,
+        threshold,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
