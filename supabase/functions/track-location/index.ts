@@ -129,12 +129,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Validate shift_end format
-    if (!/^\d{2}:\d{2}$/.test(worker.shift_end)) {
+    // Validate shift_end format (accepts both HH:MM and HH:MM:SS)
+    if (!/^\d{2}:\d{2}(:\d{2})?$/.test(worker.shift_end)) {
       console.error('Invalid shift_end format:', worker.shift_end);
       return new Response(JSON.stringify({ 
         status: 'invalid_shift_end',
-        error: 'shift_end must be in HH:MM format'
+        error: 'shift_end must be in HH:MM or HH:MM:SS format'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400
@@ -389,8 +389,9 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 function checkLastHourWindow(clockInIso: string, shiftEnd: string): boolean {
   const now = new Date();
   
-  // Parse shift_end time (HH:MM format)
-  const [shiftHour, shiftMin] = shiftEnd.split(':').map(Number);
+  // Parse shift_end time (accepts both HH:MM and HH:MM:SS formats)
+  const timeParts = shiftEnd.split(':').map(Number);
+  const [shiftHour, shiftMin] = timeParts;
   
   // CRITICAL FIX: Create shift end datetime for TODAY (current date), not clockIn date
   // This ensures the check works correctly even if worker stays clocked in overnight
