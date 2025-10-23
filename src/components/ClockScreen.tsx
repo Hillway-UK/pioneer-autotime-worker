@@ -147,6 +147,40 @@ export default function ClockScreen() {
     };
   }, []);
 
+  // Real-time clock entries listener - sync UI when auto-clocked out
+  useEffect(() => {
+    if (!worker?.id) return;
+
+    console.log('🔧 Setting up real-time listener for clock_entries...');
+    
+    const clockChannel = supabase
+      .channel('clock-entries-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'clock_entries',
+          filter: `worker_id=eq.${worker.id}`
+        },
+        (payload) => {
+          console.log('🔔 Clock entry updated:', payload);
+          
+          // If an entry was auto-clocked out, refresh the status
+          if (payload.new?.auto_clocked_out) {
+            console.log('⚠️  Auto clock-out detected! Refreshing status...');
+            toast.warning('You were automatically clocked out');
+            checkCurrentStatus();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(clockChannel);
+    };
+  }, [worker?.id]);
+
   const loadJobs = async (showToast = false) => {
     const { data, error } = await supabase
       .from('jobs')
@@ -312,25 +346,66 @@ export default function ClockScreen() {
   };
 
   const checkCurrentStatus = async () => {
-    const workerData = JSON.parse(localStorage.getItem('worker') || '{}');
-    console.log('🔧 DEBUG: Checking current status for worker:', workerData.id);
-    
-    const { data } = await supabase
-      .from('clock_entries')
-      .select('*, jobs(name)')
-      .eq('worker_id', workerData.id)
-      .is('clock_out', null)
-      .single();
-    
-    console.log('🔧 DEBUG: Current entry data:', data);
-    setCurrentEntry(data);
-    
-    // Fetch expenses for current shift if clocked in
-    if (data) {
-      console.log('✅ Worker is clocked in, fetching expenses for entry:', data.id);
-      fetchCurrentShiftExpenses(data.id);
-    } else {
-      console.log('⚠️  Worker is not clocked in');
+    try {
+      const workerData = JSON.parse(localStorage.getItem('worker') || '{}');
+      const workerId = workerData.id || worker?.id;
+      
+      console.log('🔧 DEBUG: Checking current status for worker:', workerId);
+      console.log('🔧 DEBUG: Worker from localStorage:', workerData);
+      console.log('🔧 DEBUG: Worker from context:', worker?.id);
+      
+      if (!workerId) {
+        console.error('❌ ERROR: No worker ID available');
+        return;
+      }
+
+      // First check how many open entries exist
+      const { data: allOpenEntries, error: countError } = await supabase
+        .from('clock_entries')
+        .select('id, clock_in, jobs(name)')
+        .eq('worker_id', workerId)
+        .is('clock_out', null)
+        .order('clock_in', { ascending: false });
+
+      if (countError) {
+        console.error('❌ ERROR checking open entries:', countError);
+        return;
+      }
+
+      console.log('🔧 DEBUG: Found', allOpenEntries?.length || 0, 'open clock entries');
+      
+      if (allOpenEntries && allOpenEntries.length > 1) {
+        console.warn('⚠️  WARNING: Multiple open clock entries found! Taking most recent.');
+        console.log('Open entries:', allOpenEntries);
+      }
+
+      // Use maybeSingle for safe handling - take most recent if multiple exist
+      const { data: currentEntryData, error: entryError } = await supabase
+        .from('clock_entries')
+        .select('*, jobs(name)')
+        .eq('worker_id', workerId)
+        .is('clock_out', null)
+        .order('clock_in', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (entryError) {
+        console.error('❌ ERROR fetching current entry:', entryError);
+        return;
+      }
+
+      console.log('🔧 DEBUG: Current entry data:', currentEntryData);
+      setCurrentEntry(currentEntryData);
+      
+      // Fetch expenses for current shift if clocked in
+      if (currentEntryData) {
+        console.log('✅ Worker is clocked in, fetching expenses for entry:', currentEntryData.id);
+        fetchCurrentShiftExpenses(currentEntryData.id);
+      } else {
+        console.log('⚠️  Worker is not clocked in');
+      }
+    } catch (error) {
+      console.error('❌ EXCEPTION in checkCurrentStatus:', error);
     }
   };
 

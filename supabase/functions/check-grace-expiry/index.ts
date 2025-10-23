@@ -17,6 +17,7 @@ const corsHeaders = {
 const GRACE_MINUTES = 4;
 const RACE_BUFFER_SEC = 60;
 const AUTO_DELAY_MS = (GRACE_MINUTES * 60 + RACE_BUFFER_SEC) * 1000; // 5 minutes total
+const ACCURACY_PASS_M = 50; // Maximum accuracy for reliable location
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -34,12 +35,27 @@ Deno.serve(async (req) => {
     console.log("=== CHECK-GRACE-EXPIRY INVOCATION ===");
     console.log("Cutoff:", cutoffTime);
 
+    // Clean up stale exit_detected events older than 24 hours
+    const staleThreshold = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const { error: cleanupError } = await supabase
+      .from("geofence_events")
+      .delete()
+      .eq("event_type", "exit_detected")
+      .lt("timestamp", staleThreshold);
+
+    if (cleanupError) {
+      console.warn("Failed to clean up stale events:", cleanupError);
+    } else {
+      console.log("Cleaned up stale exit_detected events older than 24 hours");
+    }
+
     // 1️⃣ Find exit_detected events older than 5 minutes that haven't been resolved
     const { data: exits, error: exitError } = await supabase
       .from("geofence_events")
       .select("id, worker_id, clock_entry_id, latitude, longitude, accuracy, distance_from_center, job_radius, safe_out_threshold, timestamp")
       .eq("event_type", "exit_detected")
-      .lt("timestamp", cutoffTime);
+      .lt("timestamp", cutoffTime)
+      .gt("timestamp", staleThreshold); // Only process recent events
 
     if (exitError) throw exitError;
     if (!exits || exits.length === 0) {
@@ -64,42 +80,63 @@ Deno.serve(async (req) => {
 
       if (existingEvents && existingEvents.length > 0) {
         console.log(`Skipping ${exit.clock_entry_id} (already handled: ${existingEvents.map((e) => e.event_type).join(", ")})`);
+        
+        // Clean up this exit_detected event since it's been handled
+        await supabase
+          .from("geofence_events")
+          .delete()
+          .eq("id", exit.id);
+        
         continue;
       }
 
-      // 3️⃣ Check for re-entry after exit
-      const { data: reentryEvents } = await supabase
+      // 2b️⃣ Check if there are any location_fix events after the exit (worker re-entered)
+      const { data: recentFixes } = await supabase
         .from("geofence_events")
-        .select("*")
+        .select("id, distance_from_center, job_radius, accuracy")
         .eq("clock_entry_id", exit.clock_entry_id)
         .eq("event_type", "location_fix")
-        .gte("timestamp", exit.timestamp)
-        .order("timestamp", { ascending: false })
-        .limit(5);
+        .gt("timestamp", exit.timestamp);
 
-      // Check if worker re-entered the geofence
-      if (reentryEvents && reentryEvents.length > 0) {
-        const reenteredInside = reentryEvents.some((e) => e.distance_from_center < exit.job_radius);
-        if (reenteredInside) {
-          console.log(`Worker re-entered during grace period for ${exit.clock_entry_id}`);
+      if (recentFixes && recentFixes.length > 0) {
+        // Check if any of these fixes show the worker is back inside with reliable accuracy
+        const backInside = recentFixes.some(fix => 
+          fix.distance_from_center <= fix.job_radius && fix.accuracy <= ACCURACY_PASS_M
+        );
+
+        if (backInside) {
+          console.log(`Worker re-entered geofence for ${exit.clock_entry_id}, recording re_entry event`);
+          
+          // Find the most recent fix that shows they're back inside
+          const mostRecentFix = recentFixes.find(fix => 
+            fix.distance_from_center <= fix.job_radius && fix.accuracy <= ACCURACY_PASS_M
+          );
+
           await supabase.from("geofence_events").insert({
             worker_id: exit.worker_id,
             clock_entry_id: exit.clock_entry_id,
-            shift_date: reentryEvents[0].shift_date,
+            shift_date: new Date().toISOString().split("T")[0],
             event_type: "re_entry",
-            latitude: reentryEvents[0].latitude,
-            longitude: reentryEvents[0].longitude,
-            accuracy: reentryEvents[0].accuracy,
-            distance_from_center: reentryEvents[0].distance_from_center,
+            latitude: exit.latitude,
+            longitude: exit.longitude,
+            accuracy: mostRecentFix?.accuracy || exit.accuracy,
+            distance_from_center: mostRecentFix?.distance_from_center || exit.distance_from_center,
             job_radius: exit.job_radius,
             safe_out_threshold: exit.safe_out_threshold,
-            timestamp: reentryEvents[0].timestamp,
+            timestamp: new Date().toISOString(),
           });
+
+          // Clean up this exit_detected event since it's been handled
+          await supabase
+            .from("geofence_events")
+            .delete()
+            .eq("id", exit.id);
+
           continue;
         }
       }
 
-      // 4️⃣ Check if manual clock-out happened
+      // 3️⃣ Check if manual clock-out happened
       const { data: clockEntry } = await supabase
         .from("clock_entries")
         .select("clock_out, auto_clocked_out, clock_in")
@@ -116,7 +153,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 5️⃣ Auto-clock-out the worker
+      // 4️⃣ Auto-clock-out the worker
       const clockOutTime = new Date(exit.timestamp);
       const totalHours =
         (clockOutTime.getTime() - new Date(clockEntry.clock_in).getTime()) /
@@ -147,7 +184,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // 6️⃣ Record exit_confirmed
+      // 5️⃣ Record exit_confirmed
       await supabase.from("geofence_events").insert({
         worker_id: exit.worker_id,
         clock_entry_id: exit.clock_entry_id,
@@ -162,7 +199,13 @@ Deno.serve(async (req) => {
         timestamp: clockOutTime.toISOString(),
       });
 
-      // 7️⃣ Send notification
+      // Clean up the original exit_detected event
+      await supabase
+        .from("geofence_events")
+        .delete()
+        .eq("id", exit.id);
+
+      // 6️⃣ Send notification
       const clockOutTimeFormatted = clockOutTime.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
       const clockOutDateFormatted = clockOutTime.toLocaleDateString("en-GB");
       const clockOutDate = clockOutTime.toISOString().split("T")[0];
