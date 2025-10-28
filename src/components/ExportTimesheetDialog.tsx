@@ -125,6 +125,34 @@ export default function ExportTimesheetDialog({
       { wch: 30 }
     ];
 
+    // Add borders to all cells
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    const borderStyle = {
+      style: 'thin',
+      color: { rgb: '000000' }
+    };
+    
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellAddress]) continue;
+        
+        if (!ws[cellAddress].s) ws[cellAddress].s = {};
+        ws[cellAddress].s.border = {
+          top: borderStyle,
+          bottom: borderStyle,
+          left: borderStyle,
+          right: borderStyle
+        };
+        
+        // Style header row (row 6, index 5)
+        if (R === 5) {
+          ws[cellAddress].s.font = { bold: true };
+          ws[cellAddress].s.fill = { fgColor: { rgb: 'DDDDDD' } };
+        }
+      }
+    }
+
     XLSX.utils.book_append_sheet(wb, ws, 'Timesheet');
     
     const { start, end } = getDateRange();
