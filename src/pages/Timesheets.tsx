@@ -1016,7 +1016,11 @@ export default function Timesheets() {
       <ExportTimesheetDialog
         open={showExportDialog}
         onOpenChange={setShowExportDialog}
-        workerName={worker?.first_name && worker?.last_name ? `${worker.first_name} ${worker.last_name}` : 'Worker'}
+        workerName={
+          worker?.first_name && worker?.last_name 
+            ? `${worker.first_name} ${worker.last_name}` 
+            : worker?.name || worker?.email?.split('@')[0] || 'Worker'
+        }
         workerId={worker?.id || ''}
         onExport={fetchEntriesForExport}
         hourlyRate={workerHourlyRate}
