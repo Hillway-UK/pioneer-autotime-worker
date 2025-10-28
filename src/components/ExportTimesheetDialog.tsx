@@ -178,12 +178,17 @@ export default function ExportTimesheetDialog({
       body: tableData,
       startY: 45,
       styles: { fontSize: 9 },
-      headStyles: { fillColor: [66, 66, 66] },
+      headStyles: { fillColor: [128, 0, 0] }, // Maroon color
       foot: [
         ['', '', '', 'Total Hours:', totalHours.toFixed(2), '', ''],
         ['', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']
       ],
-      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' }
+      footStyles: { 
+        fillColor: [128, 0, 0], // Maroon background
+        textColor: [255, 255, 255], // White text
+        fontStyle: 'bold',
+        fontSize: 10
+      }
     });
 
     const { start, end } = getDateRange();
