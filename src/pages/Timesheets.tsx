@@ -5,7 +5,7 @@ import { format, startOfWeek, endOfWeek, differenceInMinutes, parseISO, addDays 
 import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 
 const UK_TIMEZONE = 'Europe/London';
-import { Calendar, Clock, Edit2, Plus, ChevronLeft, ChevronRight, AlertCircle, DollarSign, ArrowLeft, Construction, Save } from 'lucide-react';
+import { Calendar, Clock, Edit2, Plus, ChevronLeft, ChevronRight, AlertCircle, DollarSign, ArrowLeft, Construction, Save, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import OrganizationLogo from '@/components/OrganizationLogo';
 import { useWorker } from '@/contexts/WorkerContext';
+import ExportTimesheetDialog from '@/components/ExportTimesheetDialog';
 
 export default function Timesheets() {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ export default function Timesheets() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [submittingManual, setSubmittingManual] = useState(false);
   const [worker, setWorker] = useState<any>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   // Set worker data from context
   useEffect(() => {
@@ -629,6 +631,31 @@ export default function Timesheets() {
   // Amendment submission (alias for existing function)
   const submitAmendment = handleAmendmentSubmit;
 
+  // Export function to fetch entries for a date range
+  const fetchEntriesForExport = async (startDate: Date, endDate: Date) => {
+    if (!contextWorker) return [];
+
+    try {
+      const { data, error } = await supabase
+        .from('clock_entries')
+        .select(`
+          *,
+          jobs (name, code),
+          additional_costs (amount, description)
+        `)
+        .eq('worker_id', contextWorker.id)
+        .gte('clock_in', startDate.toISOString())
+        .lte('clock_in', endDate.toISOString())
+        .order('clock_in', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching entries for export:', error);
+      throw error;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -659,29 +686,44 @@ export default function Timesheets() {
 
       {/* Week Navigation */}
       <div className="bg-white border-b">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={() => changeWeek('prev')}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          
-          <div className="text-center">
-            <p className="font-semibold text-gray-900">
-              {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
-            </p>
-            <p className="text-sm text-gray-500">
-              Total: {calculateWeeklyHours()} hours | £{calculateWeeklyTotalPay().toFixed(2)}
-            </p>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => changeWeek('prev')}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            
+            <div className="text-center">
+              <p className="font-semibold text-gray-900">
+                {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
+              </p>
+              <p className="text-sm text-gray-500">
+                Total: {calculateWeeklyHours()} hours | £{calculateWeeklyTotalPay().toFixed(2)}
+              </p>
+            </div>
+            
+            <button
+              onClick={() => changeWeek('next')}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
           
-          <button
-            onClick={() => changeWeek('next')}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+          {/* Export Button */}
+          <div className="flex justify-center mt-2">
+            <Button
+              onClick={() => setShowExportDialog(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export Timesheet
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -969,6 +1011,16 @@ export default function Timesheets() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Export Timesheet Dialog */}
+      <ExportTimesheetDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        workerName={worker?.first_name && worker?.last_name ? `${worker.first_name} ${worker.last_name}` : 'Worker'}
+        workerId={worker?.id || ''}
+        onExport={fetchEntriesForExport}
+        hourlyRate={workerHourlyRate}
+      />
     </div>
   );
 }
