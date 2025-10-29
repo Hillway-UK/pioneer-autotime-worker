@@ -638,18 +638,11 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
-      // Check accuracy first
-      if (freshLocation.accuracy > 50) {
-        // Validate geofence
-        if (distance > job.geofence_radius) {
-          toast.error(
-            `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site and wait for a better signal.`,
-          );
-        } else {
-          toast.error(
-            `Distance from site: ${Math.round(distance)}m. GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). You must be within ${job.geofence_radius}m to clock in.`,
-          );
-        }
+      // Validate geofence
+      if (distance > job.geofence_radius) {
+        toast.error(
+          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site and wait for a better signal.`,
+        );
         setLoading(false);
         return;
       }
@@ -726,18 +719,11 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
-      // Check accuracy first
-      if (freshLocation.accuracy > 50) {
-        // Validate geofence
-        if (distance > job.geofence_radius) {
-          toast.error(
-            `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site and wait for a better signal.`,
-          );
-        } else {
-          toast.error(
-            `Distance from site: ${Math.round(distance)}m. GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). You must be within ${job.geofence_radius}m to clock in.`,
-          );
-        }
+      // Validate geofence
+      if (distance > job.geofence_radius) {
+        toast.error(
+          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site and wait for a better signal.`,
+        );
         setLoading(false);
         return;
       }
