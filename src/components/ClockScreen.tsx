@@ -463,13 +463,7 @@ export default function ClockScreen() {
             return;
           }
 
-          // Validate accuracy is acceptable (<=50m)
-          if (position.coords.accuracy > 50) {
-            reject(new Error(`GPS accuracy is too low (${Math.round(position.coords.accuracy)}m). Please wait for a better signal.`));
-            return;
-          }
-
-          // Update state with fresh location
+          // Update state with fresh location (but don't check accuracy yet - we'll do that with distance)
           setLocation(locationData);
           resolve(locationData);
         },
@@ -643,8 +637,16 @@ export default function ClockScreen() {
         radius: job.geofence_radius
       });
       
+      // Check accuracy first
+      if (freshLocation.accuracy > 50) {
+        toast.error(`GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). Distance from site: ${Math.round(distance)}m. Please wait for a better signal.`);
+        setLoading(false);
+        return;
+      }
+      
+      // Check distance from job site
       if (distance > job.geofence_radius) {
-        toast.error(`You must be within ${job.geofence_radius}m of the job site. You are ${Math.round(distance)}m away.`);
+        toast.error(`You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). You must be within ${job.geofence_radius}m to clock in.`);
         setLoading(false);
         return;
       }
@@ -726,9 +728,16 @@ export default function ClockScreen() {
         radius: job.geofence_radius
       });
       
+      // Check accuracy first
+      if (freshLocation.accuracy > 50) {
+        toast.error(`GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). Distance from site: ${Math.round(distance)}m. Please wait for a better signal.`);
+        setLoading(false);
+        return;
+      }
+      
       // Validate geofence
       if (distance > job.geofence_radius) {
-        toast.error(`You must be within ${job.geofence_radius}m of the job site to clock out. You are ${Math.round(distance)}m away.`);
+        toast.error(`You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). You must be within ${job.geofence_radius}m to clock out.`);
         setLoading(false);
         return;
       }
