@@ -47,6 +47,7 @@ interface LocationData {
   lat: number;
   lng: number;
   accuracy: number;
+  timestamp?: number; // GPS timestamp in milliseconds
 }
 
 interface ExpenseType {
@@ -420,7 +421,8 @@ export default function ClockScreen() {
         setLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-          accuracy: position.coords.accuracy
+          accuracy: position.coords.accuracy,
+          timestamp: position.timestamp
         });
       },
       (error) => {
@@ -430,9 +432,58 @@ export default function ClockScreen() {
       { 
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 60000
+        maximumAge: 0 // Always get fresh location, no cached data
       }
     );
+  };
+
+  // Request fresh location and validate it's recent and accurate
+  const requestFreshLocation = (): Promise<LocationData> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Geolocation is not supported by this browser'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const locationData: LocationData = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: position.timestamp
+          };
+
+          // Validate timestamp is less than 30 seconds old
+          const now = Date.now();
+          const age = now - position.timestamp;
+          
+          if (age > 30000) {
+            reject(new Error(`Location is too old (${Math.round(age / 1000)}s). Please try again.`));
+            return;
+          }
+
+          // Validate accuracy is acceptable (<=50m)
+          if (position.coords.accuracy > 50) {
+            reject(new Error(`GPS accuracy is too low (${Math.round(position.coords.accuracy)}m). Please wait for a better signal.`));
+            return;
+          }
+
+          // Update state with fresh location
+          setLocation(locationData);
+          resolve(locationData);
+        },
+        (error) => {
+          console.error('Location error:', error);
+          reject(new Error('Unable to get your location. Please enable location services.'));
+        },
+        { 
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0 // Force fresh location, no cached data
+        }
+      );
+    });
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -547,15 +598,27 @@ export default function ClockScreen() {
   };
 
   const handleClockIn = async () => {
-    if (!selectedJobId || !location || !worker) {
-      toast.error('Please select a job and enable location');
+    if (!selectedJobId || !worker) {
+      toast.error('Please select a job');
       return;
     }
     
     setLoading(true);
     
     try {
-      // Check geofence
+      // Request fresh GPS location with validation
+      toast.info('Getting your live location...');
+      let freshLocation: LocationData;
+      
+      try {
+        freshLocation = await requestFreshLocation();
+      } catch (locationError: any) {
+        toast.error(locationError.message || 'Failed to get accurate location');
+        setLoading(false);
+        return;
+      }
+
+      // Check geofence with fresh location
       const job = jobs.find(j => j.id === selectedJobId);
       if (!job) {
         toast.error('Selected job not found');
@@ -564,11 +627,21 @@ export default function ClockScreen() {
       }
 
       const distance = calculateDistance(
-        location.lat,
-        location.lng,
+        freshLocation.lat,
+        freshLocation.lng,
         job.latitude,
         job.longitude
       );
+      
+      console.log('📍 Fresh location:', {
+        lat: freshLocation.lat,
+        lng: freshLocation.lng,
+        accuracy: freshLocation.accuracy,
+        timestamp: freshLocation.timestamp,
+        age: freshLocation.timestamp ? Date.now() - freshLocation.timestamp : 'unknown',
+        distance: Math.round(distance),
+        radius: job.geofence_radius
+      });
       
       if (distance > job.geofence_radius) {
         toast.error(`You must be within ${job.geofence_radius}m of the job site. You are ${Math.round(distance)}m away.`);
@@ -580,7 +653,7 @@ export default function ClockScreen() {
       const photoBlob = await capturePhoto();
       const photoUrl = await uploadPhoto(photoBlob);
       
-      // Create clock entry
+      // Create clock entry with fresh location
       const { data, error } = await supabase
         .from('clock_entries')
         .insert({
@@ -588,8 +661,8 @@ export default function ClockScreen() {
           job_id: selectedJobId,
           clock_in: new Date().toISOString(),
           clock_in_photo: photoUrl,
-          clock_in_lat: location.lat,
-          clock_in_lng: location.lng
+          clock_in_lat: freshLocation.lat,
+          clock_in_lng: freshLocation.lng
         })
         .select('*, jobs(name)')
         .single();
@@ -612,15 +685,21 @@ export default function ClockScreen() {
   const handleClockOut = async () => {
     if (!currentEntry || !worker) return;
     
-    // Check location is available
-    if (!location) {
-      toast.error('Location not available. Please enable location services.');
-      return;
-    }
-    
     setLoading(true);
     
     try {
+      // Request fresh GPS location with validation
+      toast.info('Getting your live location...');
+      let freshLocation: LocationData;
+      
+      try {
+        freshLocation = await requestFreshLocation();
+      } catch (locationError: any) {
+        toast.error(locationError.message || 'Failed to get accurate location');
+        setLoading(false);
+        return;
+      }
+
       // Get the job details to check geofence
       const job = jobs.find(j => j.id === currentEntry.job_id);
       if (!job) {
@@ -629,13 +708,23 @@ export default function ClockScreen() {
         return;
       }
       
-      // Calculate distance from job site
+      // Calculate distance from job site with fresh location
       const distance = calculateDistance(
-        location.lat,
-        location.lng,
+        freshLocation.lat,
+        freshLocation.lng,
         job.latitude,
         job.longitude
       );
+      
+      console.log('📍 Fresh location for clock-out:', {
+        lat: freshLocation.lat,
+        lng: freshLocation.lng,
+        accuracy: freshLocation.accuracy,
+        timestamp: freshLocation.timestamp,
+        age: freshLocation.timestamp ? Date.now() - freshLocation.timestamp : 'unknown',
+        distance: Math.round(distance),
+        radius: job.geofence_radius
+      });
       
       // Validate geofence
       if (distance > job.geofence_radius) {
@@ -653,14 +742,14 @@ export default function ClockScreen() {
       const clockOut = new Date();
       const hours = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60 * 60);
       
-      // Update clock entry
+      // Update clock entry with fresh location
       const { data, error } = await supabase
         .from('clock_entries')
         .update({
           clock_out: clockOut.toISOString(),
           clock_out_photo: photoUrl,
-          clock_out_lat: location?.lat,
-          clock_out_lng: location?.lng,
+          clock_out_lat: freshLocation.lat,
+          clock_out_lng: freshLocation.lng,
           total_hours: Math.round(hours * 100) / 100
         })
         .eq('id', currentEntry.id)
