@@ -464,10 +464,10 @@ export default function ClockScreen() {
           const now = Date.now();
           const age = now - position.timestamp;
 
-          if (age > 30000) {
+          /*if (age > 30000) {
             reject(new Error(`Location is too old (${Math.round(age / 1000)}s). Please try again.`));
             return;
-          }
+          }*/
 
           // Update state with fresh location (but don't check accuracy yet - we'll do that with distance)
           setLocation(locationData);
