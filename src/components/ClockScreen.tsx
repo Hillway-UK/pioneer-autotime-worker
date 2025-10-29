@@ -637,9 +637,18 @@ export default function ClockScreen() {
         radius: job.geofence_radius
       });
 
+      
+      // Check accuracy first
+      if (distance > job.geofence_radius && freshLocation.accuracy > 50) {
+        toast.error(`Distance from site: ${Math.round(distance)}m. GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). Please wait for a better signal.`);
+        setLoading(false);
+        return;
+      }
+
       // Check distance from job site
       if (distance > job.geofence_radius) {
         toast.error(`You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). You must be within ${job.geofence_radius}m to clock in.`);
+        setLoading(false);
         return;
       }
       
@@ -719,6 +728,13 @@ export default function ClockScreen() {
         distance: Math.round(distance),
         radius: job.geofence_radius
       });
+      
+      // Check accuracy first
+      if (freshLocation.accuracy > 50) {
+        toast.error(`GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). Distance from site: ${Math.round(distance)}m. Please move closer to the site and wait for a better signal.`);
+        setLoading(false);
+        return;
+      }
       
       // Validate geofence
       if (distance > job.geofence_radius) {
