@@ -641,7 +641,7 @@ export default function ClockScreen() {
       // Validate geofence
       if (distance > job.geofence_radius) {
         toast.error(
-          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site and wait for a better signal.`,
+          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
         );
         setLoading(false);
         return;
@@ -722,7 +722,7 @@ export default function ClockScreen() {
       // Validate geofence
       if (distance > job.geofence_radius) {
         toast.error(
-          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site and wait for a better signal.`,
+          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
         );
         setLoading(false);
         return;
