@@ -639,7 +639,7 @@ export default function ClockScreen() {
       
       // Check accuracy first
       if (freshLocation.accuracy > 50) {
-        toast.error(`GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). Distance from site: ${Math.round(distance)}m. Please wait for a better signal.`);
+        toast.error(`Distance from site: ${Math.round(distance)}m. GPS accuracy is too low (${Math.round(freshLocation.accuracy)}m). Please wait for a better signal.`);
         setLoading(false);
         return;
       }
