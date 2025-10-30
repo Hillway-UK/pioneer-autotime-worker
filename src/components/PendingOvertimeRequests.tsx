@@ -88,7 +88,7 @@ export default function PendingOvertimeRequests() {
       }
 
       // Fetch all OT entries for workers in the same organization
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('clock_entries')
         .select(`
           *,
@@ -120,13 +120,13 @@ export default function PendingOvertimeRequests() {
 
     setProcessing(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('clock_entries')
         .update({
           ot_status: 'approved',
           ot_approved_by: managerId,
           ot_approved_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', entry.id);
 
       if (error) {
@@ -178,14 +178,14 @@ export default function PendingOvertimeRequests() {
 
     setProcessing(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('clock_entries')
         .update({
           ot_status: 'rejected',
           ot_rejection_reason: rejectionReason,
           ot_approved_by: managerId,
           ot_approved_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', selectedEntry.id);
 
       if (error) {

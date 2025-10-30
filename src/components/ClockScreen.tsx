@@ -627,7 +627,7 @@ export default function ClockScreen() {
       const todayEnd = new Date();
       todayEnd.setHours(23, 59, 59, 999);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('clock_entries')
         .select('id')
         .eq('worker_id', worker?.id)

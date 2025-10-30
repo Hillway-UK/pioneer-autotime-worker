@@ -3,9 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 export async function mergeOvertimeHours(otEntryId: string): Promise<boolean> {
   try {
     // Get OT entry details
-    const { data: otEntry, error: otError } = await supabase
+    const { data: otEntry, error: otError }: any = await (supabase as any)
       .from('clock_entries')
-      .select('linked_shift_id, clock_in, clock_out, total_hours, ot_status')
+      .select('*')
       .eq('id', otEntryId)
       .single();
 
@@ -31,7 +31,7 @@ export async function mergeOvertimeHours(otEntryId: string): Promise<boolean> {
     }
 
     // Get main shift
-    const { data: mainShift, error: shiftError } = await supabase
+    const { data: mainShift, error: shiftError } = await (supabase as any)
       .from('clock_entries')
       .select('total_hours')
       .eq('id', otEntry.linked_shift_id)
@@ -46,9 +46,9 @@ export async function mergeOvertimeHours(otEntryId: string): Promise<boolean> {
     const newTotalHours = (mainShift.total_hours || 0) + otEntry.total_hours;
 
     // Update main shift with merged hours
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('clock_entries')
-      .update({ total_hours: newTotalHours })
+      .update({ total_hours: newTotalHours } as any)
       .eq('id', otEntry.linked_shift_id);
 
     if (updateError) {
