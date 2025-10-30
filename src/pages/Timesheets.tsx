@@ -12,9 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import OrganizationLogo from '@/components/OrganizationLogo';
 import { useWorker } from '@/contexts/WorkerContext';
 import ExportTimesheetDialog from '@/components/ExportTimesheetDialog';
+import { formatOvertimeStatus, getOvertimeStatusColor } from '@/lib/overtimeUtils';
 
 export default function Timesheets() {
   const navigate = useNavigate();
@@ -199,6 +201,10 @@ export default function Timesheets() {
   };
 
   const weeklyTotal = entries.reduce((total, entry) => {
+    // Exclude pending/rejected OT from total
+    if (entry.is_overtime && entry.ot_status !== 'approved') {
+      return total;
+    }
     return total + calculateHours(entry.clock_in, entry.clock_out);
   }, 0);
 
@@ -755,15 +761,31 @@ export default function Timesheets() {
                     <div key={entry.id} className="p-4">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">
-                            {entry.jobs?.name || 'Unknown Job'}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-gray-900">
+                              {entry.jobs?.name || 'Unknown Job'}
+                            </p>
+                            {entry.is_overtime && (
+                              <Badge 
+                                variant="secondary" 
+                                className={getOvertimeStatusColor(entry.ot_status)}
+                              >
+                                OT: {formatOvertimeStatus(entry.ot_status)}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-600">
                             {format(new Date(entry.clock_in), 'h:mm a')} - 
                             {entry.clock_out 
                               ? format(new Date(entry.clock_out), 'h:mm a')
                               : 'In Progress'}
                           </p>
+                          {entry.auto_clocked_out && entry.auto_clockout_reason && (
+                            <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              {entry.auto_clockout_reason}
+                            </p>
+                          )}
                           {entry.additional_costs?.length > 0 && (
                             <p className="text-sm text-gray-500 mt-1">
                               Expenses: £{entry.additional_costs.reduce((sum: number, cost: any) => 
@@ -795,9 +817,16 @@ export default function Timesheets() {
                         </div>
                       </div>
                       
+                      {/* Rejection Reason for OT */}
+                      {entry.is_overtime && entry.ot_status === 'rejected' && entry.ot_rejection_reason && (
+                        <div className="mt-2 p-2 bg-red-50 rounded text-xs text-red-700">
+                          <strong>Rejection reason:</strong> {entry.ot_rejection_reason}
+                        </div>
+                      )}
+                      
                       {/* Action Buttons */}
                       <div className="mt-3 flex space-x-2">
-                        {entry.clock_out && (() => {
+                        {entry.clock_out && !entry.is_overtime && (() => {
                           const pendingAmendment = getPendingAmendmentForEntry(entry.id);
                           const amendment = getAmendmentForEntry(entry.id);
                           
@@ -828,7 +857,7 @@ export default function Timesheets() {
                           return null;
                         })()}
                         
-                        {!entry.additional_costs?.length && entry.clock_out && (
+                        {!entry.additional_costs?.length && entry.clock_out && !entry.is_overtime && (
                           <button
                             onClick={() => openExpenseDialog(entry)}
                             className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"

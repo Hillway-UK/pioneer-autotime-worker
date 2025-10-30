@@ -24,9 +24,11 @@ import { toast } from "sonner";
 import OrganizationLogo from "@/components/OrganizationLogo";
 import PWAInstallDialog from "@/components/PWAInstallDialog";
 import NotificationPanel from "@/components/NotificationPanel";
+import OvertimeConfirmationDialog from "@/components/OvertimeConfirmationDialog";
 import { useWorker } from "@/contexts/WorkerContext";
 import { useUpdate } from "@/contexts/UpdateContext";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { NotificationService } from "@/services/notifications";
 
 interface Worker {
   id: string;
@@ -96,6 +98,14 @@ export default function ClockScreen() {
   const [showPWADialog, setShowPWADialog] = useState(false);
   const [isTrackingLocation, setIsTrackingLocation] = useState(false);
   const locationIntervalRef = useRef<number | null>(null);
+  
+  // Overtime state
+  const [showOvertimeDialog, setShowOvertimeDialog] = useState(false);
+  const [pendingOvertimeData, setPendingOvertimeData] = useState<{
+    photoUrl: string;
+    location: LocationData;
+    jobId: string;
+  } | null>(null);
 
   // Set worker from context
   useEffect(() => {
@@ -597,6 +607,98 @@ export default function ClockScreen() {
     return publicUrl;
   };
 
+  // Check if current time is past shift end
+  const isPastShiftEnd = (): boolean => {
+    if (!worker?.shift_end) return false;
+    
+    const now = new Date();
+    const [hours, minutes] = worker.shift_end.split(':').map(Number);
+    const shiftEndTime = new Date();
+    shiftEndTime.setHours(hours, minutes, 0, 0);
+    
+    return now > shiftEndTime;
+  };
+
+  // Get today's main shift entry (for linking OT)
+  const getTodayMainShift = async (): Promise<string | null> => {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const { data, error } = await supabase
+        .from('clock_entries')
+        .select('id')
+        .eq('worker_id', worker?.id)
+        .eq('is_overtime', false)
+        .gte('clock_in', todayStart.toISOString())
+        .lte('clock_in', todayEnd.toISOString())
+        .order('clock_in', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) {
+        console.log('No main shift found for today');
+        return null;
+      }
+
+      return data.id;
+    } catch (error) {
+      console.error('Error getting today shift:', error);
+      return null;
+    }
+  };
+
+  // Create overtime clock entry
+  const createOvertimeEntry = async () => {
+    if (!pendingOvertimeData || !worker) return;
+
+    try {
+      const linkedShiftId = await getTodayMainShift();
+
+      const { data, error } = await supabase
+        .from("clock_entries")
+        .insert({
+          worker_id: worker.id,
+          job_id: pendingOvertimeData.jobId,
+          clock_in: new Date().toISOString(),
+          clock_in_photo: pendingOvertimeData.photoUrl,
+          clock_in_lat: pendingOvertimeData.location.lat,
+          clock_in_lng: pendingOvertimeData.location.lng,
+          is_overtime: true,
+          ot_status: 'pending',
+          ot_requested_at: new Date().toISOString(),
+          linked_shift_id: linkedShiftId,
+        })
+        .select("*, jobs(name)")
+        .single();
+
+      if (error) {
+        toast.error("Failed to create overtime entry: " + error.message);
+        return;
+      }
+
+      // Send notification
+      const dedupeKey = `ot_request_${worker.id}_${new Date().toISOString().split('T')[0]}`;
+      await NotificationService.sendDualNotification(
+        worker.id,
+        'Overtime Request Submitted',
+        'Your overtime request is pending manager approval.',
+        'overtime_pending',
+        dedupeKey
+      );
+
+      setCurrentEntry(data);
+      toast.success("Overtime requested! Awaiting manager approval.");
+      setShowOvertimeDialog(false);
+      setPendingOvertimeData(null);
+    } catch (error) {
+      console.error("Error creating OT entry:", error);
+      toast.error("Failed to request overtime");
+    }
+  };
+
   const handleClockIn = async () => {
     if (!selectedJobId || !worker) {
       toast.error("Please select a job");
@@ -651,7 +753,19 @@ export default function ClockScreen() {
       const photoBlob = await capturePhoto();
       const photoUrl = await uploadPhoto(photoBlob);
 
-      // Create clock entry with fresh location
+      // Check if past shift end time (overtime)
+      if (isPastShiftEnd()) {
+        setPendingOvertimeData({
+          photoUrl,
+          location: freshLocation,
+          jobId: selectedJobId
+        });
+        setShowOvertimeDialog(true);
+        setLoading(false);
+        return;
+      }
+
+      // Create regular clock entry with fresh location
       const { data, error } = await supabase
         .from("clock_entries")
         .insert({
@@ -1197,6 +1311,17 @@ export default function ClockScreen() {
 
       {/* PWA Install Dialog */}
       <PWAInstallDialog open={showPWADialog} onOpenChange={setShowPWADialog} onDismiss={handlePWADialogDismiss} />
+      
+      {/* Overtime Confirmation Dialog */}
+      <OvertimeConfirmationDialog
+        open={showOvertimeDialog}
+        onConfirm={createOvertimeEntry}
+        onCancel={() => {
+          setShowOvertimeDialog(false);
+          setPendingOvertimeData(null);
+          setLoading(false);
+        }}
+      />
     </div>
   );
 }
