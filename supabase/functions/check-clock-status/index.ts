@@ -325,6 +325,20 @@ async function handleClockOutReminders(
       continue;
     }
 
+    // Check if worker has an active OT session
+    const { data: activeOT } = await supabase
+      .from('clock_entries')
+      .select('id')
+      .eq('worker_id', worker.id)
+      .eq('is_overtime', true)
+      .is('clock_out', null)
+      .single();
+
+    if (activeOT) {
+      console.log(`Worker ${worker.name} has active OT session, skipping clock-out reminder`);
+      continue;
+    }
+
     // Dynamic message based on worker's shift_end
     const title = getClockOutTitle(currentTime, worker.shift_end);
     const body = `⏰ Reminder: Please clock out now. Your shift ended at ${worker.shift_end}.\n\nIf you don't clock out, the system will automatically clock you out 30 minutes after shift end.`;
@@ -387,6 +401,21 @@ async function handleAutoClockOut(
     // Skip if already auto-clocked-out by any mechanism
     if (entry.auto_clocked_out) {
       console.log(`Worker ${worker.name} already auto-clocked-out (type: ${entry.auto_clockout_type}), skipping time-based auto-clockout`);
+      continue;
+    }
+
+    // Check if worker has an active OT session
+    const { data: activeOT } = await supabase
+      .from('clock_entries')
+      .select('id, clock_in')
+      .eq('worker_id', worker.id)
+      .eq('is_overtime', true)
+      .is('clock_out', null)
+      .single();
+
+    if (activeOT) {
+      console.log(`Worker ${worker.name} has active OT session (${activeOT.id}), skipping auto-clockout and notifications for original shift`);
+      await createAudit(supabase, worker.id, siteDate, false, 'ACTIVE_OT');
       continue;
     }
 
