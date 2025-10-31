@@ -1,120 +1,205 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Utility: current time in Europe/London
-function nowInTz(tz: string = 'Europe/London') {
+// Utility: current time in Europe/London (handles DST)
+function nowInTz(tz: string = "Europe/London") {
   const now = new Date();
-  const formatter = new Intl.DateTimeFormat('en-GB', {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
     timeZone: tz,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short'
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    weekday: "short",
   });
   const parts = formatter.formatToParts(now);
-  const get = (type: string) => parts.find(p => p.type === type)?.value || '';
-  const day = get('day'), month = get('month'), year = get('year');
-  const weekdayName = get('weekday');
-  const map: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "";
+  const day = get("day");
+  const month = get("month");
+  const year = get("year");
+  const weekdayName = get("weekday");
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
   return {
     dateStr: `${year}-${month}-${day}`,
-    timeHHmm: `${get('hour')}:${get('minute')}`,
+    timeHHmm: `${get("hour")}:${get("minute")}`,
     dayOfWeek: map[weekdayName] || 0,
   };
 }
 
 interface Worker {
-  id: string; name: string; email: string;
-  organization_id: string; shift_start: string; shift_end: string;
+  id: string;
+  name: string;
+  email: string;
+  organization_id: string;
+  shift_start: string;
+  shift_end: string;
   shift_days: number[];
 }
 
 interface ClockEntry {
-  id: string; clock_in: string; clock_out: string | null;
-  job_id: string; is_overtime?: boolean; auto_clocked_out?: boolean;
+  id: string;
+  clock_in: string;
+  clock_out: string | null;
+  job_id: string;
+  is_overtime?: boolean;
+  auto_clocked_out?: boolean;
   auto_clockout_type?: string | null;
 }
 
 serve(async (req) => {
-  const origin = req.headers.get('origin') || '*';
+  const origin = req.headers.get("origin") || "*";
   const corsHeaders = {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Max-Age': '86400',
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Max-Age": "86400",
   };
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   try {
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
-    const { dateStr, timeHHmm, dayOfWeek } = nowInTz('Europe/London');
+
+    const { dateStr, timeHHmm, dayOfWeek } = nowInTz("Europe/London");
     const siteDate = new Date(`${dateStr}T00:00:00Z`);
 
     // Skip weekends
-    if (dayOfWeek === 0 || dayOfWeek === 6)
-      return new Response(JSON.stringify({ message: 'Weekend - skipped' }), { status: 200, headers: corsHeaders });
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return new Response(
+        JSON.stringify({ message: "Weekend - skipped" }),
+        { status: 200, headers: corsHeaders }
+      );
+    }
 
     let actions = 0;
-    const clockInWorkers = await getWorkersForClockInReminder(supabase, timeHHmm, dayOfWeek);
-    if (clockInWorkers.length) actions += await handleClockInReminders(supabase, timeHHmm, siteDate, clockInWorkers);
+    const clockInWorkers = await getWorkersForClockInReminder(
+      supabase,
+      timeHHmm,
+      dayOfWeek
+    );
+    if (clockInWorkers.length) {
+      actions += await handleClockInReminders(
+        supabase,
+        timeHHmm,
+        siteDate,
+        clockInWorkers
+      );
+    }
 
-    const clockOutWorkers = await getWorkersForClockOutReminder(supabase, timeHHmm, dayOfWeek);
-    if (clockOutWorkers.length) actions += await handleClockOutReminders(supabase, timeHHmm, siteDate, clockOutWorkers);
+    const clockOutWorkers = await getWorkersForClockOutReminder(
+      supabase,
+      timeHHmm,
+      dayOfWeek
+    );
+    if (clockOutWorkers.length) {
+      actions += await handleClockOutReminders(
+        supabase,
+        timeHHmm,
+        siteDate,
+        clockOutWorkers
+      );
+    }
 
-    const autoClockoutWorkers = await getWorkersForAutoClockout(supabase, timeHHmm, dayOfWeek);
-    if (autoClockoutWorkers.length) actions += await handleAutoClockOut(supabase, timeHHmm, siteDate, autoClockoutWorkers);
+    const autoClockoutWorkers = await getWorkersForAutoClockout(
+      supabase,
+      timeHHmm,
+      dayOfWeek
+    );
+    if (autoClockoutWorkers.length) {
+      actions += await handleAutoClockOut(
+        supabase,
+        timeHHmm,
+        siteDate,
+        autoClockoutWorkers
+      );
+    }
 
-    return new Response(JSON.stringify({ message: 'Check completed', actionsPerformed: actions }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({
+        message: "Check completed",
+        actionsPerformed: actions,
+        timestamp: new Date().toISOString(),
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    console.error("Error in check-ot-autoclockout:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : String(error),
+      }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
 
+// ---------- Worker Query Helpers ----------
+
 async function getWorkersForClockInReminder(supabase: any, t: string, d: number) {
-  const [h, m] = t.split(':').map(Number), cur = h * 60 + m;
-  const { data: w } = await supabase.from('workers')
-    .select('id,name,email,organization_id,shift_start,shift_end,shift_days')
-    .eq('is_active', true);
+  const [h, m] = t.split(":").map(Number);
+  const cur = h * 60 + m;
+  const { data: w } = await supabase
+    .from("workers")
+    .select("id,name,email,organization_id,shift_start,shift_end,shift_days")
+    .eq("is_active", true);
   if (!w) return [];
   return w.filter((x: Worker) => {
     if (!x.shift_days?.includes(d)) return false;
     if (!x.shift_start) return false;
-    const [sh, sm] = x.shift_start.split(':').map(Number);
-    const sMin = sh * 60 + sm, diff = cur - sMin;
+    const [sh, sm] = x.shift_start.split(":").map(Number);
+    const sMin = sh * 60 + sm;
+    const diff = cur - sMin;
     return diff === -5 || diff === 0 || diff === 15;
   });
 }
 
 async function getWorkersForClockOutReminder(supabase: any, t: string, d: number) {
-  const [h, m] = t.split(':').map(Number), cur = h * 60 + m;
-  const { data: w } = await supabase.from('workers')
-    .select('id,name,email,organization_id,shift_start,shift_end,shift_days')
-    .eq('is_active', true);
+  const [h, m] = t.split(":").map(Number);
+  const cur = h * 60 + m;
+  const { data: w } = await supabase
+    .from("workers")
+    .select("id,name,email,organization_id,shift_start,shift_end,shift_days")
+    .eq("is_active", true);
   if (!w) return [];
   return w.filter((x: Worker) => {
     if (!x.shift_days?.includes(d)) return false;
     if (!x.shift_end) return false;
-    const [eh, em] = x.shift_end.split(':').map(Number);
-    const eMin = eh * 60 + em, diff = cur - eMin;
+    const [eh, em] = x.shift_end.split(":").map(Number);
+    const eMin = eh * 60 + em;
+    const diff = cur - eMin;
     return diff === 0 || diff === 15;
   });
 }
 
 async function getWorkersForAutoClockout(supabase: any, t: string, d: number) {
-  const [h, m] = t.split(':').map(Number), cur = h * 60 + m;
-  const { data: w } = await supabase.from('workers')
-    .select('id,name,email,organization_id,shift_start,shift_end,shift_days')
-    .eq('is_active', true);
+  const [h, m] = t.split(":").map(Number);
+  const cur = h * 60 + m;
+  const { data: w } = await supabase
+    .from("workers")
+    .select("id,name,email,organization_id,shift_start,shift_end,shift_days")
+    .eq("is_active", true);
   if (!w) return [];
   return w.filter((x: Worker) => {
     if (!x.shift_days?.includes(d)) return false;
     if (!x.shift_end) return false;
-    const [eh, em] = x.shift_end.split(':').map(Number);
+    const [eh, em] = x.shift_end.split(":").map(Number);
     const end = eh * 60 + em;
     return cur >= end + 30 && cur <= end + 40;
   });
@@ -125,7 +210,7 @@ async function getWorkersForAutoClockout(supabase: any, t: string, d: number) {
 async function handleClockInReminders(supabase: any, t: string, date: Date, workers: Worker[]) {
   let sent = 0;
   for (const w of workers) {
-    const notif = `clock_in_${t.replace(':', '')}_shift${w.shift_start.replace(':', '')}`;
+    const notif = `clock_in_${t.replace(":", "")}_shift${w.shift_start.replace(":", "")}`;
     if (await checkNotificationSent(supabase, w.id, notif, date)) continue;
     const entry = await getTodayEntry(supabase, w.id, date);
     if (entry) continue;
@@ -141,21 +226,21 @@ async function handleClockInReminders(supabase: any, t: string, date: Date, work
 async function handleClockOutReminders(supabase: any, t: string, date: Date, workers: Worker[]) {
   let sent = 0;
   for (const w of workers) {
-    const notif = `clock_out_${t.replace(':', '')}_shift${w.shift_end.replace(':', '')}`;
+    const notif = `clock_out_${t.replace(":", "")}_shift${w.shift_end.replace(":", "")}`;
     if (await checkNotificationSent(supabase, w.id, notif, date)) continue;
     const stillClocked = await isWorkerStillClockedIn(supabase, w.id, date);
     if (!stillClocked) continue;
 
     // NEW: skip if worker has active OT
     const { data: activeOT } = await supabase
-      .from('clock_entries')
-      .select('id')
-      .eq('worker_id', w.id)
-      .eq('is_overtime', true)
-      .is('clock_out', null)
+      .from("clock_entries")
+      .select("id")
+      .eq("worker_id", w.id)
+      .eq("is_overtime", true)
+      .is("clock_out", null)
       .maybeSingle();
     if (activeOT) {
-      console.log(`Skipping clock-out reminder for ${w.name} (has active OT)`);
+      console.log(`Skipping clock-out reminder for ${w.name} (active OT)`);
       continue;
     }
 
@@ -174,8 +259,7 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
   let performed = 0;
   for (const w of workers) {
     const entry = await getTodayEntry(supabase, w.id, date);
-    if (!entry) continue;
-    if (entry.clock_out) continue;
+    if (!entry || entry.clock_out) continue;
 
     // Check active OT
     const activeOT = await getActiveOTEntries(supabase, w.id);
@@ -185,25 +269,26 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
       continue;
     }
 
-    // No OT → normal 30-min auto clockout
-    const [eh, em] = w.shift_end.split(':').map(Number);
+    // Normal 30-min auto clockout
+    const [eh, em] = w.shift_end.split(":").map(Number);
     const clockOut = new Date(date);
     const totalMin = eh * 60 + em + 30;
     clockOut.setHours(Math.floor(totalMin / 60), totalMin % 60, 0, 0);
     const clockIn = new Date(entry.clock_in);
     const totalHrs = (clockOut.getTime() - clockIn.getTime()) / 3.6e6;
-    await supabase.from('clock_entries').update({
+    await supabase.from("clock_entries").update({
       clock_out: clockOut.toISOString(),
       auto_clocked_out: true,
-      auto_clockout_type: 'time_based',
+      auto_clockout_type: "time_based",
       total_hours: totalHrs,
       notes: `Auto clocked-out 30min after shift end ${w.shift_end}`,
-    }).eq('id', entry.id);
+    }).eq("id", entry.id);
     performed++;
 
-    const title = 'Auto Clocked-Out - No Clock-Out Detected';
-    const body = `You were automatically clocked out at ${w.shift_end} +30min.\n\nIf incorrect, submit a Time Amendment request.`;
-    await sendNotification(supabase, w.id, title, body, 'auto_clockout_time', date);
+    const title = "Auto Clocked-Out - No Clock-Out Detected";
+    const body =
+      `You were automatically clocked out at ${w.shift_end} +30min.\nIf incorrect, please submit a Time Amendment request.`;
+    await sendNotification(supabase, w.id, title, body, "auto_clockout_time", date);
     await sendPushNotification(supabase, w.id, title, body);
   }
   return performed;
@@ -213,11 +298,11 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
 
 async function getActiveOTEntries(supabase: any, workerId: string): Promise<ClockEntry | null> {
   const { data } = await supabase
-    .from('clock_entries')
-    .select('id,clock_in,clock_out,job_id')
-    .eq('worker_id', workerId)
-    .eq('is_overtime', true)
-    .is('clock_out', null)
+    .from("clock_entries")
+    .select("id,clock_in,clock_out,job_id")
+    .eq("worker_id", workerId)
+    .eq("is_overtime", true)
+    .is("clock_out", null)
     .maybeSingle();
   return data;
 }
@@ -227,54 +312,55 @@ async function handleOTAutoClockOut(supabase: any, date: Date, t: string, w: Wor
   const inTime = new Date(ot.clock_in);
   const hrs = (now.getTime() - inTime.getTime()) / 3.6e6;
   const left = await hasLeftGeofence(supabase, w.id, ot.job_id);
-
   if (hrs < 3 && !left) return false;
 
-  const reason = left ? 'LEFT_GEOFENCE' : 'OT_LIMIT_REACHED';
-  await supabase.from('clock_entries').update({
+  const reason = left ? "LEFT_GEOFENCE" : "OT_LIMIT_REACHED";
+  await supabase.from("clock_entries").update({
     clock_out: now.toISOString(),
     auto_clocked_out: true,
-    auto_clockout_type: reason === 'LEFT_GEOFENCE' ? 'geofence_based' : 'ot_time_based',
+    auto_clockout_type: reason === "LEFT_GEOFENCE" ? "geofence_based" : "ot_time_based",
     total_hours: hrs,
-    notes: reason === 'LEFT_GEOFENCE'
-      ? 'Auto clocked-out (left site during OT)'
-      : 'Auto clocked-out after 3-hour OT period',
-  }).eq('id', ot.id);
+    notes: reason === "LEFT_GEOFENCE"
+      ? "Auto clocked-out (left site during OT)"
+      : "Auto clocked-out after 3-hour OT period",
+  }).eq("id", ot.id);
 
-  const title = reason === 'LEFT_GEOFENCE'
-    ? 'Auto Clocked-Out - Left Site During OT'
-    : 'Auto Clocked-Out - 3 Hour OT Limit Reached';
-  const body = reason === 'LEFT_GEOFENCE'
-    ? 'You were automatically clocked out for leaving the job site during OT.'
-    : 'You were automatically clocked out after reaching the 3-hour OT limit.';
-  await sendNotification(supabase, w.id, title, body, 'ot_auto_clockout', date);
+  const title =
+    reason === "LEFT_GEOFENCE"
+      ? "Auto Clocked-Out - Left Site During OT"
+      : "Auto Clocked-Out - 3 Hour OT Limit Reached";
+  const body =
+    reason === "LEFT_GEOFENCE"
+      ? "You were automatically clocked out for leaving the job site during OT."
+      : "You were automatically clocked out after reaching the 3-hour OT limit.";
+  await sendNotification(supabase, w.id, title, body, "ot_auto_clockout", date);
   await sendPushNotification(supabase, w.id, title, body);
   return true;
 }
 
 async function hasLeftGeofence(supabase: any, workerId: string, jobId: string) {
   const { data } = await supabase
-    .from('worker_tracking')
-    .select('outside_geofence')
-    .eq('worker_id', workerId)
-    .eq('job_id', jobId)
-    .order('created_at', { ascending: false })
+    .from("worker_tracking")
+    .select("outside_geofence")
+    .eq("worker_id", workerId)
+    .eq("job_id", jobId)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return !!data?.outside_geofence;
 }
 
-// ---------- Shared Utils ----------
+// ---------- Utility Functions ----------
 
 async function getTodayEntry(supabase: any, id: string, date: Date): Promise<ClockEntry | null> {
-  const d = date.toISOString().split('T')[0];
+  const d = date.toISOString().split("T")[0];
   const { data } = await supabase
-    .from('clock_entries')
-    .select('id,clock_in,clock_out,job_id')
-    .eq('worker_id', id)
-    .gte('clock_in', `${d}T00:00:00Z`)
-    .lt('clock_in', `${d}T23:59:59Z`)
-    .order('clock_in', { ascending: false })
+    .from("clock_entries")
+    .select("id,clock_in,clock_out,job_id")
+    .eq("worker_id", id)
+    .gte("clock_in", `${d}T00:00:00Z`)
+    .lt("clock_in", `${d}T23:59:59Z`)
+    .order("clock_in", { ascending: false })
     .limit(1)
     .maybeSingle();
   return data;
@@ -287,56 +373,65 @@ async function isWorkerStillClockedIn(supabase: any, id: string, date: Date) {
 
 async function checkNotificationSent(supabase: any, id: string, type: string, date: Date) {
   const { data } = await supabase
-    .from('notification_log')
-    .select('id')
-    .eq('worker_id', id)
-    .eq('notification_type', type)
-    .eq('shift_date', date.toISOString().split('T')[0])
-    .eq('canceled', false)
+    .from("notification_log")
+    .select("id")
+    .eq("worker_id", id)
+    .eq("notification_type", type)
+    .eq("shift_date", date.toISOString().split("T")[0])
+    .eq("canceled", false)
     .maybeSingle();
   return !!data;
 }
 
 async function logNotification(supabase: any, id: string, type: string, date: Date) {
-  await supabase.from('notification_log').insert({
-    worker_id: id, notification_type: type,
-    shift_date: date.toISOString().split('T')[0],
-    sent_at: new Date().toISOString(), canceled: false
+  await supabase.from("notification_log").insert({
+    worker_id: id,
+    notification_type: type,
+    shift_date: date.toISOString().split("T")[0],
+    sent_at: new Date().toISOString(),
+    canceled: false,
   });
 }
 
 async function sendNotification(supabase: any, id: string, title: string, body: string, type: string, date: Date) {
-  const key = `${id}:${date.toISOString().split('T')[0]}:${type}`;
-  const { data: ex } = await supabase.from('notifications').select('id').eq('dedupe_key', key).maybeSingle();
+  const key = `${id}:${date.toISOString().split("T")[0]}:${type}`;
+  const { data: ex } = await supabase.from("notifications").select("id").eq("dedupe_key", key).maybeSingle();
   if (ex) return;
-  await supabase.from('notifications').insert({
-    worker_id: id, title, body, type, dedupe_key: key, created_at: new Date().toISOString()
+  await supabase.from("notifications").insert({
+    worker_id: id,
+    title,
+    body,
+    type,
+    dedupe_key: key,
+    created_at: new Date().toISOString(),
   });
 }
 
 async function sendPushNotification(supabase: any, id: string, title: string, body: string) {
-  const { data } = await supabase.from('notification_preferences')
-    .select('push_token').eq('worker_id', id).maybeSingle();
+  const { data } = await supabase
+    .from("notification_preferences")
+    .select("push_token")
+    .eq("worker_id", id)
+    .maybeSingle();
   if (!data?.push_token) return;
   console.log(`Push -> ${id}`, { title, body });
 }
 
-// Titles
 function getClockInTitle(t: string, s: string) {
-  const [ch, cm] = t.split(':').map(Number);
-  const [sh, sm] = s.split(':').map(Number);
+  const [ch, cm] = t.split(":").map(Number);
+  const [sh, sm] = s.split(":").map(Number);
   const diff = (ch * 60 + cm) - (sh * 60 + sm);
-  if (diff === -5) return '⏰ Shift Starting Soon';
-  if (diff === 0) return '🌅 Shift Start Time';
-  if (diff === 15) return '⚠️ Late Clock-In Reminder';
-  return 'Clock In Reminder';
+  if (diff === -5) return "⏰ Shift Starting Soon";
+  if (diff === 0) return "🌅 Shift Start Time";
+  if (diff === 15) return "⚠️ Late Clock-In Reminder";
+  return "Clock In Reminder";
 }
 
 function getClockOutTitle(t: string, e: string) {
-  const [ch, cm] = t.split(':').map(Number);
-  const [eh, em] = e.split(':').map(Number);
+  const [ch, cm] = t.split(":").map(Number);
+  const [eh, em] = e.split(":").map(Number);
   const diff = (ch * 60 + cm) - (eh * 60 + em);
-  if (diff === 0) return '✅ Shift End Time';
-  if (diff === 15) return '🏠 Time to Clock Out';
-  return 'Clock Out Reminder';
+  if (diff === 0) return "✅ Shift End Time";
+  if (diff === 15) return "🏠 Time to Clock Out";
+  return "Clock Out Reminder";
 }
