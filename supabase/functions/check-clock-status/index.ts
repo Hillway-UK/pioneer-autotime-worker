@@ -57,13 +57,11 @@ interface ClockEntry {
 }
 
 serve(async (req) => {
-  const origin = req.headers.get("origin") || "*";
   const corsHeaders = {
-    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Max-Age": "86400",
   };
 
   if (req.method === "OPTIONS") {
@@ -136,16 +134,26 @@ serve(async (req) => {
         actionsPerformed: actions,
         timestamp: new Date().toISOString(),
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   } catch (error: unknown) {
     console.error("Error in check-ot-autoclockout:", error);
+
+    const message =
+      error instanceof Error ? error.message : JSON.stringify(error);
+
     return new Response(
       JSON.stringify({
         error: "Internal server error",
-        details: error instanceof Error ? error.message : String(error),
+        details: message,
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
@@ -261,7 +269,6 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
     const entry = await getTodayEntry(supabase, w.id, date);
     if (!entry || entry.clock_out) continue;
 
-    // Check active OT
     const activeOT = await getActiveOTEntries(supabase, w.id);
     if (activeOT) {
       const handled = await handleOTAutoClockOut(supabase, date, t, w, activeOT);
@@ -269,7 +276,6 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
       continue;
     }
 
-    // Normal 30-min auto clockout
     const [eh, em] = w.shift_end.split(":").map(Number);
     const clockOut = new Date(date);
     const totalMin = eh * 60 + em + 30;
