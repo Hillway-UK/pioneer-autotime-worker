@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
 
     console.log('[OT Auto Clock-Out] Starting check at', now.toISOString());
 
-    // Get all active OT entries (no clock_out yet)
+    // Fetch all active OT sessions (no clock_out yet)
     const { data: activeOTs, error: fetchError } = await supabase
       .from('clock_entries')
       .select('id, worker_id, job_id, clock_in, linked_shift_id')
@@ -35,7 +35,10 @@ Deno.serve(async (req) => {
     if (fetchError) {
       console.error('[OT Auto Clock-Out] Error fetching active OTs:', fetchError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch active OT entries', details: fetchError }),
+        JSON.stringify({
+          error: 'Failed to fetch active OT entries',
+          details: fetchError.message ?? JSON.stringify(fetchError),
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -53,11 +56,16 @@ Deno.serve(async (req) => {
 
     for (const entry of activeOTs) {
       const clockInTime = new Date(entry.clock_in);
-      const hoursWorked = (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
+      const hoursWorked =
+        (now.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
 
-      console.log(`[OT Auto Clock-Out] Entry ${entry.id}: ${hoursWorked.toFixed(2)} hours worked`);
+      console.log(
+        `[OT Auto Clock-Out] Entry ${entry.id}: ${hoursWorked.toFixed(
+          2
+        )} hours worked`
+      );
 
-      // Check 1: Geofence exit detected
+      // Check 1️⃣: Geofence exit detected
       const { data: exitEvent } = await supabase
         .from('geofence_events')
         .select('id, event_type')
@@ -67,35 +75,45 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (exitEvent) {
-        console.log(`[OT Auto Clock-Out] Entry ${entry.id}: Exit detected, auto-clocking out`);
+        console.log(
+          `[OT Auto Clock-Out] Entry ${entry.id}: Exit detected, auto-clocking out`
+        );
         await autoClockOut(supabase, entry, 'Left job site during overtime');
         autoClockedOut++;
         continue;
       }
 
-      // Check 2: 3-hour limit reached
+      // Check 2️⃣: 3-hour OT limit reached
       if (hoursWorked >= MAX_OT_HOURS) {
-        console.log(`[OT Auto Clock-Out] Entry ${entry.id}: 3-hour limit reached, auto-clocking out`);
+        console.log(
+          `[OT Auto Clock-Out] Entry ${entry.id}: 3-hour limit reached, auto-clocking out`
+        );
         await autoClockOut(supabase, entry, 'Maximum 3-hour OT limit reached');
         autoClockedOut++;
       }
     }
 
-    console.log(`[OT Auto Clock-Out] Complete. Auto-clocked out ${autoClockedOut} entries`);
+    console.log(
+      `[OT Auto Clock-Out] Complete. Auto-clocked out ${autoClockedOut} entries`
+    );
 
     return new Response(
       JSON.stringify({
         message: 'OT auto-clockout check complete',
         activeOTs: activeOTs.length,
-        autoClockedOut
+        autoClockedOut,
+        timestamp: now.toISOString(),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[OT Auto Clock-Out] Unexpected error:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({
+        error: 'Internal server error',
+        details: message,
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -109,21 +127,27 @@ async function autoClockOut(
   const clockOutTime = new Date().toISOString();
 
   try {
-    // Calculate total hours
+    // Calculate total OT hours
     const clockInTime = new Date(entry.clock_in);
     const clockOutDate = new Date(clockOutTime);
-    const totalHours = (clockOutDate.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
+    const totalHours =
+      (clockOutDate.getTime() - clockInTime.getTime()) / (1000 * 60 * 60);
 
-    console.log(`[Auto Clock-Out] Entry ${entry.id}: Setting clock_out to ${clockOutTime}, total hours: ${totalHours.toFixed(2)}`);
+    console.log(
+      `[Auto Clock-Out] Entry ${entry.id}: Setting clock_out to ${clockOutTime}, total hours: ${totalHours.toFixed(
+        2
+      )}`
+    );
 
-    // Update clock entry
+    // Update OT clock entry
     const { error: updateError } = await supabase
       .from('clock_entries')
       .update({
         clock_out: clockOutTime,
         auto_clocked_out: true,
         auto_clockout_reason: reason,
-        total_hours: totalHours
+        total_hours: totalHours,
+        notes: `Auto clocked-out OT (${reason})`,
       })
       .eq('id', entry.id);
 
@@ -132,7 +156,7 @@ async function autoClockOut(
       return;
     }
 
-    // Resolve any exit_detected events for this entry
+    // Resolve any unresolved exit_detected events for this OT entry
     await supabase
       .from('geofence_events')
       .update({ resolved_at: clockOutTime })
@@ -140,21 +164,54 @@ async function autoClockOut(
       .eq('event_type', 'exit_detected')
       .is('resolved_at', null);
 
-    // Send notification
+    // In-app notification
     const notificationTitle = 'Overtime Auto Clock-Out';
-    const notificationBody = `You were automatically clocked out from your overtime (${reason}).`;
-    
+    const notificationBody = `You were automatically clocked out from your overtime.\nReason: ${reason}.`;
+
+    const dedupeKey = `ot_auto_${entry.id}_${clockOutTime}`;
+
     await supabase.from('notifications').insert({
       worker_id: entry.worker_id,
       title: notificationTitle,
       body: notificationBody,
       type: 'overtime_auto_clockout',
-      dedupe_key: `ot_auto_${entry.id}_${clockOutTime}`,
-      created_at: clockOutTime
+      dedupe_key: dedupeKey,
+      created_at: clockOutTime,
     });
 
-    console.log(`[Auto Clock-Out] Entry ${entry.id}: Complete. Notification sent.`);
-  } catch (error) {
-    console.error(`[Auto Clock-Out] Error processing entry ${entry.id}:`, error);
+    console.log(`[Auto Clock-Out] Entry ${entry.id}: Notification logged.`);
+
+    // Push notification (optional; existing infra)
+    await sendPushNotification(supabase, entry.worker_id, notificationTitle, notificationBody);
+
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Auto Clock-Out] Error processing entry ${entry.id}:`, message);
+  }
+}
+
+async function sendPushNotification(
+  supabase: any,
+  workerId: string,
+  title: string,
+  body: string
+): Promise<void> {
+  try {
+    const { data } = await supabase
+      .from('notification_preferences')
+      .select('push_token')
+      .eq('worker_id', workerId)
+      .maybeSingle();
+
+    if (!data?.push_token) {
+      console.log(`[Push] No push token found for worker ${workerId}`);
+      return;
+    }
+
+    // Simulate push delivery (actual push service can be integrated here)
+    console.log(`[Push] Sending to ${workerId}`, { title, body });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Push] Error sending push notification for ${workerId}:`, message);
   }
 }
