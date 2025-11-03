@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const MAX_OT_HOURS = 3;
+const GRACE_PERIOD_MINUTES = 5;
 
 interface ActiveOT {
   id: string;
@@ -65,30 +66,61 @@ Deno.serve(async (req) => {
         )} hours worked`
       );
 
-      // Check 1️⃣: Geofence exit detected
-      const { data: exitEvent } = await supabase
+      // Check 1️⃣: Geofence exit detected with grace period
+      const { data: exitEvents } = await supabase
         .from('geofence_events')
-        .select('id, event_type')
+        .select('id, event_type, timestamp')
         .eq('clock_entry_id', entry.id)
         .eq('event_type', 'exit_detected')
         .is('resolved_at', null)
-        .maybeSingle();
+        .order('timestamp', { ascending: false });
 
-      if (exitEvent) {
+      if (exitEvents && exitEvents.length > 0) {
+        // Get the earliest unresolved exit event
+        const firstExitEvent = exitEvents[exitEvents.length - 1];
+        const exitTime = new Date(firstExitEvent.timestamp);
+        const gracePeriodMs = GRACE_PERIOD_MINUTES * 60 * 1000;
+        const timeSinceExit = now.getTime() - exitTime.getTime();
+
         console.log(
-          `[OT Auto Clock-Out] Entry ${entry.id}: Exit detected, auto-clocking out`
+          `[OT Auto Clock-Out] Entry ${entry.id}: Exit detected at ${exitTime.toISOString()}, ` +
+          `${(timeSinceExit / 1000 / 60).toFixed(2)} minutes ago`
         );
-        await autoClockOut(supabase, entry, 'Left job site during overtime');
-        autoClockedOut++;
-        continue;
+
+        // Only auto-clockout if grace period has passed
+        if (timeSinceExit >= gracePeriodMs) {
+          console.log(
+            `[OT Auto Clock-Out] Entry ${entry.id}: Grace period (${GRACE_PERIOD_MINUTES} min) exceeded, auto-clocking out`
+          );
+          const exitTimeFormatted = exitTime.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit',
+            hour12: true 
+          });
+          await autoClockOut(
+            supabase, 
+            entry, 
+            `Left job site at ${exitTimeFormatted} during overtime`
+          );
+          autoClockedOut++;
+          continue;
+        } else {
+          console.log(
+            `[OT Auto Clock-Out] Entry ${entry.id}: Still within grace period, not auto-clocking out yet`
+          );
+        }
       }
 
       // Check 2️⃣: 3-hour OT limit reached
       if (hoursWorked >= MAX_OT_HOURS) {
         console.log(
-          `[OT Auto Clock-Out] Entry ${entry.id}: 3-hour limit reached, auto-clocking out`
+          `[OT Auto Clock-Out] Entry ${entry.id}: 3-hour limit reached (${hoursWorked.toFixed(2)} hours), auto-clocking out`
         );
-        await autoClockOut(supabase, entry, 'Maximum 3-hour OT limit reached');
+        await autoClockOut(
+          supabase, 
+          entry, 
+          'Maximum 3-hour overtime limit reached. If you worked longer, please request a time amendment.'
+        );
         autoClockedOut++;
       }
     }
@@ -166,7 +198,7 @@ async function autoClockOut(
 
     // In-app notification
     const notificationTitle = 'Overtime Auto Clock-Out';
-    const notificationBody = `You were automatically clocked out from your overtime.\nReason: ${reason}.`;
+    const notificationBody = `You were automatically clocked out from your overtime. Reason: ${reason}`;
 
     const dedupeKey = `ot_auto_${entry.id}_${clockOutTime}`;
 
@@ -179,9 +211,9 @@ async function autoClockOut(
       created_at: clockOutTime,
     });
 
-    console.log(`[Auto Clock-Out] Entry ${entry.id}: Notification logged.`);
+    console.log(`[Auto Clock-Out] Entry ${entry.id}: In-app notification created.`);
 
-    // Push notification (optional; existing infra)
+    // Push notification
     await sendPushNotification(supabase, entry.worker_id, notificationTitle, notificationBody);
 
   } catch (error: unknown) {

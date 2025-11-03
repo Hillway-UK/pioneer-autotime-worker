@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // 1. Validate worker is clocked in
     const { data: clockEntry, error: entryError } = await supabase
       .from("clock_entries")
-      .select("*, jobs(latitude, longitude, geofence_radius)")
+      .select("*, jobs(latitude, longitude, geofence_radius), is_overtime")
       .eq("id", payload.clock_entry_id)
       .eq("worker_id", payload.worker_id)
       .is("clock_out", null)
@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
       clock_in: clockEntry.clock_in,
       job_name: clockEntry.jobs?.name,
       job_radius: clockEntry.jobs?.geofence_radius,
+      is_overtime: clockEntry.is_overtime || false,
     });
 
     // 2. Get job details
@@ -109,65 +110,66 @@ Deno.serve(async (req) => {
       timestamp: payload.timestamp,
     });
 
-    // 6. Check if in last hour window
-    const { data: worker } = await supabase.from("workers").select("shift_end").eq("id", payload.worker_id).single();
+    // 6. Check if this is overtime OR in last hour window
+    const isOvertime = clockEntry.is_overtime === true;
+    
+    if (!isOvertime) {
+      // For regular shifts, only check geofence in last hour window
+      const { data: worker } = await supabase.from("workers").select("shift_end").eq("id", payload.worker_id).single();
 
-    if (!worker || !worker.shift_end) {
-      console.log("Worker shift_end not found");
-      return new Response(JSON.stringify({ status: "no_shift_end" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    // --- SHIFT END VALIDATION (Unified) ---
-    const shiftEndRaw = worker.shift_end?.trim();
-
-    if (!shiftEndRaw) {
-      console.error("Missing shift_end");
-      return new Response(JSON.stringify({ status: "no_shift_end" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    // Use the robust parser to support HH:MM, HH:MM:SS, or 12h AM/PM
-    const parsedShiftEnd = parseShiftEnd(shiftEndRaw);
-    if (!parsedShiftEnd) {
-      console.error("Invalid shift_end format:", shiftEndRaw);
-      return new Response(
-        JSON.stringify({
-          status: "invalid_shift_end",
-          error: "shift_end must be in HH:MM, HH:MM:SS, or h:mm AM/PM format",
-        }),
-        {
+      if (!worker || !worker.shift_end) {
+        console.log("Worker shift_end not found");
+        return new Response(JSON.stringify({ status: "no_shift_end" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 400,
-        },
-      );
-    }
+          status: 200,
+        });
+      }
 
-    const normalizedShiftEnd = `${String(parsedShiftEnd.hour).padStart(2, "0")}:${String(parsedShiftEnd.minute).padStart(2, "0")}`;
-    const isInLastHour = checkLastHourWindow(clockEntry.clock_in, normalizedShiftEnd);
+      // --- SHIFT END VALIDATION (Unified) ---
+      const shiftEndRaw = worker.shift_end?.trim();
 
-    console.log("Last hour window result:", {
-      isInLastHour,
-      worker_shift_end: normalizedShiftEnd,
-      clock_in: clockEntry.clock_in,
-    });
+      if (!shiftEndRaw) {
+        console.error("Missing shift_end");
+        return new Response(JSON.stringify({ status: "no_shift_end" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
 
-    console.log("Last hour window result:", {
-      isInLastHour,
-      worker_shift_end: worker.shift_end,
-      clock_in: clockEntry.clock_in,
-    });
+      // Use the robust parser to support HH:MM, HH:MM:SS, or 12h AM/PM
+      const parsedShiftEnd = parseShiftEnd(shiftEndRaw);
+      if (!parsedShiftEnd) {
+        console.error("Invalid shift_end format:", shiftEndRaw);
+        return new Response(
+          JSON.stringify({
+            status: "invalid_shift_end",
+            error: "shift_end must be in HH:MM, HH:MM:SS, or h:mm AM/PM format",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 400,
+          },
+        );
+      }
 
-    if (!isInLastHour) {
-      console.log("Not in last hour window");
-      return new Response(JSON.stringify({ status: "outside_window", distance, threshold }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
+      const normalizedShiftEnd = `${String(parsedShiftEnd.hour).padStart(2, "0")}:${String(parsedShiftEnd.minute).padStart(2, "0")}`;
+      const isInLastHour = checkLastHourWindow(clockEntry.clock_in, normalizedShiftEnd);
+
+      console.log("Last hour window result:", {
+        isInLastHour,
+        worker_shift_end: normalizedShiftEnd,
+        clock_in: clockEntry.clock_in,
       });
+
+      if (!isInLastHour) {
+        console.log("Not in last hour window for regular shift");
+        return new Response(JSON.stringify({ status: "outside_window", distance, threshold }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    } else {
+      console.log("Overtime session detected - always checking geofence");
     }
 
     // 7. Check if reliable exit
