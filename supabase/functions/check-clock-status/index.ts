@@ -500,9 +500,29 @@ async function sendPushNotification(supabase: any, id: string, title: string, bo
     .select("push_token")
     .eq("worker_id", id)
     .maybeSingle();
-  if (!data?.push_token) return;
-  // integrate with your existing push sender here
-  console.log(`Push -> ${id}`, { title, body });
+  if (!data?.push_token) {
+    console.log(`No push token found for worker ${id}`);
+    return;
+  }
+  
+  try {
+    // Call the push notification edge function
+    const { error } = await supabase.functions.invoke('send-push-notification', {
+      body: { 
+        token: data.push_token, 
+        title, 
+        body 
+      }
+    });
+    
+    if (error) {
+      console.error(`Failed to send push notification to ${id}:`, error);
+    } else {
+      console.log(`✅ Push notification sent to worker ${id}: ${title}`);
+    }
+  } catch (err) {
+    console.error(`Error sending push notification to ${id}:`, err);
+  }
 }
 
 function getClockInTitle(t: string, s: string) {
