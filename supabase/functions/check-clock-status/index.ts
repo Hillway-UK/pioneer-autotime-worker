@@ -297,6 +297,13 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
           })
           .eq("id", openBase.id);
 
+        // ✅ Send notification for base shift auto-clockout
+        const title = "Base Shift Auto Clocked-Out";
+        const body = `Your regular shift was automatically clocked out at ${w.shift_end} when you clocked in for overtime.`;
+        await sendNotification(supabase, w.id, title, body, "auto_clockout_ot_start", date);
+        await logNotification(supabase, w.id, "auto_clockout_ot_start", date);
+        await sendPushNotification(supabase, w.id, title, body);
+
         performed++;
       }
 
