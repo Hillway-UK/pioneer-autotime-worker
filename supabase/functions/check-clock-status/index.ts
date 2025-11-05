@@ -133,6 +133,11 @@ serve(async (req) => {
       );
     }
 
+    // Check ALL active OT entries for 3-hour limit or geofence exits
+    // This runs on every invocation to catch OT exceeding limits
+    const otActions = await checkActiveOvertimeSessions(supabase, siteDate);
+    actions += otActions;
+
     return new Response(
       JSON.stringify({
         message: "Check completed",
@@ -410,6 +415,104 @@ async function hasLeftGeofence(supabase: any, workerId: string, jobId: string) {
 }
 
 // ---------- Additional Helpers (NEW) ----------
+
+async function checkActiveOvertimeSessions(supabase: any, date: Date): Promise<number> {
+  let clockedOut = 0;
+  
+  // Get all active OT sessions
+  const { data: activeOTs } = await supabase
+    .from("clock_entries")
+    .select("id,worker_id,clock_in,job_id,is_overtime")
+    .eq("is_overtime", true)
+    .is("clock_out", null);
+
+  if (!activeOTs || activeOTs.length === 0) return 0;
+
+  console.log(`[OT Check] Found ${activeOTs.length} active OT sessions`);
+
+  for (const ot of activeOTs) {
+    const now = new Date();
+    const inTime = new Date(ot.clock_in);
+    const hrs = (now.getTime() - inTime.getTime()) / 3.6e6;
+
+    console.log(`[OT Check] Entry ${ot.id}: ${hrs.toFixed(2)} hours worked`);
+
+    // Check for geofence exit with grace period (5 minutes)
+    const { data: exitEvents } = await supabase
+      .from("geofence_events")
+      .select("id,timestamp")
+      .eq("clock_entry_id", ot.id)
+      .eq("event_type", "exit_detected")
+      .is("resolved_at", null)
+      .order("timestamp", { ascending: false });
+
+    if (exitEvents && exitEvents.length > 0) {
+      const firstExitEvent = exitEvents[exitEvents.length - 1];
+      const exitTime = new Date(firstExitEvent.timestamp);
+      const timeSinceExit = now.getTime() - exitTime.getTime();
+      const graceMs = 5 * 60 * 1000; // 5 minutes
+
+      if (timeSinceExit >= graceMs) {
+        console.log(`[OT Check] Auto-clocking out ${ot.id} - geofence exit`);
+        const exitTimeStr = exitTime.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+        await autoClockOutOT(supabase, ot, date, `Left job site at ${exitTimeStr} during overtime`);
+        clockedOut++;
+        continue;
+      }
+    }
+
+    // Check 3-hour limit
+    if (hrs >= 3) {
+      console.log(`[OT Check] Auto-clocking out ${ot.id} - 3 hour limit`);
+      await autoClockOutOT(
+        supabase, 
+        ot, 
+        date, 
+        "Maximum 3-hour overtime limit reached. If you worked longer, please request a time amendment."
+      );
+      clockedOut++;
+    }
+  }
+
+  return clockedOut;
+}
+
+async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string) {
+  const now = new Date();
+  const inTime = new Date(ot.clock_in);
+  const totalHrs = (now.getTime() - inTime.getTime()) / 3.6e6;
+
+  // Update the OT entry
+  await supabase.from("clock_entries").update({
+    clock_out: now.toISOString(),
+    auto_clocked_out: true,
+    auto_clockout_type: reason.includes("site") ? "geofence_based" : "ot_time_based",
+    total_hours: Math.max(0, totalHrs),
+    notes: `Auto clocked-out: ${reason}`,
+  }).eq("id", ot.id);
+
+  // Resolve any geofence exit events
+  await supabase
+    .from("geofence_events")
+    .update({ resolved_at: now.toISOString() })
+    .eq("clock_entry_id", ot.id)
+    .eq("event_type", "exit_detected")
+    .is("resolved_at", null);
+
+  // Notifications
+  const title = reason.includes("site") 
+    ? "Auto Clocked-Out - Left Site During OT"
+    : "Auto Clocked-Out - 3 Hour OT Limit Reached";
+  const body = `You were automatically clocked out from overtime. ${reason}`;
+
+  await sendNotification(supabase, ot.worker_id, title, body, "ot_auto_clockout", date);
+  await logNotification(supabase, ot.worker_id, "ot_auto_clockout", date);
+  await sendPushNotification(supabase, ot.worker_id, title, body);
+}
 
 async function getOpenBaseShiftEntry(supabase: any, workerId: string, date: Date): Promise<ClockEntry | null> {
   // Any non-OT, still-open entry today?
