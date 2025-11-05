@@ -240,8 +240,20 @@ async function sendPushNotification(
       return;
     }
 
-    // Simulate push delivery (actual push service can be integrated here)
-    console.log(`[Push] Sending to ${workerId}`, { title, body });
+    // Call the push notification edge function
+    const { error } = await supabase.functions.invoke('send-push-notification', {
+      body: { 
+        token: data.push_token, 
+        title, 
+        body 
+      }
+    });
+    
+    if (error) {
+      console.error(`[Push] Failed to send push notification to ${workerId}:`, error);
+    } else {
+      console.log(`[Push] ✅ Notification sent to worker ${workerId}: ${title}`);
+    }
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[Push] Error sending push notification for ${workerId}:`, message);
