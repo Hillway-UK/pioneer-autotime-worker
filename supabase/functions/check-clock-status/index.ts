@@ -36,6 +36,18 @@ function nowInTz(tz: string = "Europe/London") {
   };
 }
 
+// NEW: format a Date into HH:mm in a given tz (for comparing to shift_end)
+function hhmmInTz(d: Date, tz: string = "Europe/London") {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  // "HH:mm"
+  return fmt.format(d);
+}
+
 interface Worker {
   id: string;
   name: string;
@@ -90,6 +102,13 @@ serve(async (req) => {
     }
 
     let actions = 0;
+
+    // NEW: Enforce “late clock-in (>= shift_end) without earlier base shift” as OT + send reminder
+    actions += await handleLateOTClockInReminderAndFlag(
+      supabase,
+      dayOfWeek,
+      siteDate
+    );
 
     const clockInWorkers = await getWorkersForClockInReminder(
       supabase,
@@ -556,6 +575,19 @@ async function getTodayEntry(supabase: any, id: string, date: Date): Promise<Clo
   return data;
 }
 
+// NEW: fetch all today's entries for a worker, ascending by clock_in
+async function getTodayEntriesAsc(supabase: any, id: string, date: Date): Promise<ClockEntry[]> {
+  const d = date.toISOString().split("T")[0];
+  const { data } = await supabase
+    .from("clock_entries")
+    .select("id,clock_in,clock_out,job_id,is_overtime")
+    .eq("worker_id", id)
+    .gte("clock_in", `${d}T00:00:00Z`)
+    .lt("clock_in", `${d}T23:59:59Z`)
+    .order("clock_in", { ascending: true });
+  return data ?? [];
+}
+
 async function isWorkerStillClockedIn(supabase: any, id: string, date: Date) {
   const e = await getTodayEntry(supabase, id, date);
   return !!(e && !e.clock_out);
@@ -645,4 +677,77 @@ function getClockOutTitle(t: string, e: string) {
   if (diff === 0) return "✅ Shift End Time";
   if (diff === 15) return "🏠 Time to Clock Out";
   return "Clock Out Reminder";
+}
+
+// ---------- NEW: Late OT clock-in detection, flagging, and reminder ----------
+
+async function handleLateOTClockInReminderAndFlag(
+  supabase: any,
+  dayOfWeek: number,
+  date: Date
+): Promise<number> {
+  let actions = 0;
+
+  // Load active workers with shifts
+  const { data: workers } = await supabase
+    .from("workers")
+    .select("id,name,organization_id,shift_start,shift_end,shift_days")
+    .eq("is_active", true);
+
+  if (!workers || workers.length === 0) return 0;
+
+  for (const w of workers as Worker[]) {
+    // Only consider workers scheduled today and with a defined shift_end
+    if (!w.shift_days?.includes(dayOfWeek) || !w.shift_end) continue;
+
+    // Get today's entries (ascending)
+    const entries = await getTodayEntriesAsc(supabase, w.id, date);
+    if (!entries || entries.length === 0) continue;
+
+    // We're interested in the **first** entry of the day
+    const first = entries[0];
+
+    // If there is an earlier base entry (before shift_end), then this is not the "missed base" case
+    // Compare first.clock_in (London time HH:mm) vs shift_end
+    const firstHHmm = hhmmInTz(new Date(first.clock_in), "Europe/London");
+    const [fh, fm] = firstHHmm.split(":").map(Number);
+    const [eh, em] = w.shift_end.split(":").map(Number);
+    const firstMin = fh * 60 + fm;
+    const endMin = eh * 60 + em;
+
+    // Condition: first clock-in is at or after shift_end (>=), meaning they missed the scheduled base
+    if (firstMin >= endMin) {
+      // If the entry isn't already OT, convert it to OT
+      if (!first.is_overtime) {
+        await supabase
+          .from("clock_entries")
+          .update({
+            is_overtime: true,
+            notes: "Clocked in at/after scheduled shift end without prior base shift; auto-marked as overtime.",
+          })
+          .eq("id", first.id);
+        actions++;
+      }
+
+      // Send the late-OT notification once per day per worker
+      const notifType = "late_ot_clockin_notice";
+      const alreadySent = await checkNotificationSent(supabase, w.id, notifType, date);
+      if (!alreadySent) {
+        const title = "Late Clock-In: Tracked as Overtime (3-Hour Limit)";
+        const body = `You clocked in after your scheduled shift ended (${w.shift_end}).
+This session is being tracked as **Overtime**, limited to 3 hours maximum.
+
+If your shift schedule changed, please coordinate with your manager so your shift time can be updated.
+
+If you worked longer than 3 hours, please file a **Time Amendment** request.`;
+
+        await sendNotification(supabase, w.id, title, body, notifType, date);
+        await logNotification(supabase, w.id, notifType, date);
+        await sendPushNotification(supabase, w.id, title, body);
+        actions++;
+      }
+    }
+  }
+
+  return actions;
 }
