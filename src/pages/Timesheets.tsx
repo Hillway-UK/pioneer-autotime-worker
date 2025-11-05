@@ -655,7 +655,17 @@ export default function Timesheets() {
         .order('clock_in', { ascending: true });
 
       if (error) throw error;
-      return data || [];
+      
+      // Filter out pending and rejected OT entries
+      const filteredData = (data || []).filter((entry: any) => {
+        // Include if it's not an OT entry
+        if (!entry.is_overtime) return true;
+        
+        // For OT entries, only include if status is 'approved'
+        return entry.ot_status === 'approved';
+      });
+      
+      return filteredData;
     } catch (error) {
       console.error('Error fetching entries for export:', error);
       throw error;
