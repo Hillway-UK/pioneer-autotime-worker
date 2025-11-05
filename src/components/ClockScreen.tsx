@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Camera,
   MapPin,
@@ -19,7 +18,12 @@ import {
   Construction,
   FileText,
   Info,
+  ChevronsUpDown,
+  Search,
 } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import OrganizationLogo from "@/components/OrganizationLogo";
 import PWAInstallDialog from "@/components/PWAInstallDialog";
@@ -82,6 +86,7 @@ export default function ClockScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [currentEntry, setCurrentEntry] = useState<ClockEntry | null>(null);
+  const [jobSearchOpen, setJobSearchOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useState<LocationData | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -1161,18 +1166,50 @@ export default function ClockScreen() {
                       <RefreshCw className={`w-4 h-4 ${refreshingJobs ? "animate-spin" : ""}`} />
                     </Button>
                   </div>
-                  <Select value={selectedJobId} onValueChange={setSelectedJobId}>
-                    <SelectTrigger className="h-12">
-                      <SelectValue placeholder="Choose a job site" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {jobs.map((job) => (
-                        <SelectItem key={job.id} value={job.id}>
-                          {job.name} ({job.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={jobSearchOpen} onOpenChange={setJobSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={jobSearchOpen}
+                        className="w-full h-12 justify-between"
+                      >
+                        {selectedJobId
+                          ? jobs.find((job) => job.id === selectedJobId)?.name + 
+                            " (" + jobs.find((job) => job.id === selectedJobId)?.code + ")"
+                          : "Choose a job site"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search job sites..." className="h-12" />
+                        <CommandList>
+                          <CommandEmpty>No job site found.</CommandEmpty>
+                          <CommandGroup>
+                            {jobs.map((job) => (
+                              <CommandItem
+                                key={job.id}
+                                value={`${job.name} ${job.code}`}
+                                onSelect={() => {
+                                  setSelectedJobId(job.id);
+                                  setJobSearchOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedJobId === job.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {job.name} ({job.code})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   {jobs.length === 0 && (
                     <p className="text-xs text-muted-foreground mt-2">No job sites available. Try refreshing.</p>
                   )}
