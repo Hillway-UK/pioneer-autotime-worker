@@ -136,15 +136,21 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 3️⃣ Check if manual clock-out happened
+      // 3️⃣ Check if manual clock-out happened or if this is an OT entry
       const { data: clockEntry } = await supabase
         .from("clock_entries")
-        .select("clock_out, auto_clocked_out, clock_in")
+        .select("clock_out, auto_clocked_out, clock_in, is_overtime")
         .eq("id", exit.clock_entry_id)
         .single();
 
       if (!clockEntry) {
         console.log(`Clock entry not found for ${exit.clock_entry_id}`);
+        continue;
+      }
+
+      // Skip OT entries - they are handled by check-clock-status with 3-hour limit
+      if (clockEntry.is_overtime) {
+        console.log(`Skipping ${exit.clock_entry_id} (OT entry - handled by check-clock-status).`);
         continue;
       }
 

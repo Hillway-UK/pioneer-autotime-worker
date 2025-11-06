@@ -366,7 +366,9 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date): Promise<n
       const firstExit = exitEvents[exitEvents.length - 1];
       const exitTime = new Date(firstExit.timestamp);
       const graceMs = 5 * 60 * 1000;
-      if (now.getTime() - exitTime.getTime() >= graceMs) {
+      
+      // Only auto-clockout if grace period has passed AND still within 3-hour OT limit
+      if (now.getTime() - exitTime.getTime() >= graceMs && hrs <= 3) {
         await autoClockOutOT(
           supabase,
           ot,
