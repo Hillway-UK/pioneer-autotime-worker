@@ -111,6 +111,7 @@ export default function ClockScreen() {
     location: LocationData;
     jobId: string;
   } | null>(null);
+  const [isRequestingOvertime, setIsRequestingOvertime] = useState(false);
 
   // Set worker from context
   useEffect(() => {
@@ -657,9 +658,45 @@ export default function ClockScreen() {
 
   // Create overtime clock entry
   const createOvertimeEntry = async () => {
-    if (!pendingOvertimeData || !worker) return;
+    if (!pendingOvertimeData || !worker || isRequestingOvertime) return;
+
+    setIsRequestingOvertime(true);
 
     try {
+      // Check if there's already an OT request for today
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+
+      const { data: existingOT, error: checkError } = await (supabase as any)
+        .from("clock_entries")
+        .select('id, ot_status')
+        .eq('worker_id', worker.id)
+        .eq('is_overtime', true)
+        .gte('clock_in', todayStart.toISOString())
+        .lte('clock_in', todayEnd.toISOString())
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing OT:', checkError);
+        toast.error("Failed to verify overtime status");
+        setIsRequestingOvertime(false);
+        return;
+      }
+
+      if (existingOT) {
+        const status = existingOT.ot_status === 'pending' ? 'pending approval' :
+                      existingOT.ot_status === 'approved' ? 'already approved' : 
+                      'already submitted';
+        toast.error(`You already have an overtime request for today (${status})`);
+        setShowOvertimeDialog(false);
+        setPendingOvertimeData(null);
+        setIsRequestingOvertime(false);
+        setLoading(false);
+        return;
+      }
+
       const linkedShiftId = await getTodayMainShift();
 
       const { data, error } = await supabase
@@ -681,6 +718,7 @@ export default function ClockScreen() {
 
       if (error) {
         toast.error("Failed to create overtime entry: " + error.message);
+        setIsRequestingOvertime(false);
         return;
       }
 
@@ -698,9 +736,11 @@ export default function ClockScreen() {
       toast.success("Overtime requested! Awaiting manager approval.");
       setShowOvertimeDialog(false);
       setPendingOvertimeData(null);
+      setIsRequestingOvertime(false);
     } catch (error) {
       console.error("Error creating OT entry:", error);
       toast.error("Failed to request overtime");
+      setIsRequestingOvertime(false);
     }
   };
 
@@ -1358,6 +1398,7 @@ export default function ClockScreen() {
           setPendingOvertimeData(null);
           setLoading(false);
         }}
+        isLoading={isRequestingOvertime}
       />
     </div>
   );

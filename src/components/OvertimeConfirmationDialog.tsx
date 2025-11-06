@@ -1,17 +1,19 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 interface OvertimeConfirmationDialogProps {
   open: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  isLoading?: boolean;
 }
 
 export default function OvertimeConfirmationDialog({ 
   open, 
   onConfirm, 
-  onCancel 
+  onCancel,
+  isLoading = false
 }: OvertimeConfirmationDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
@@ -50,11 +52,22 @@ export default function OvertimeConfirmationDialog({
             </ul>
           </div>
           <div className="flex gap-2 justify-end pt-2">
-            <Button variant="outline" onClick={onCancel}>
+            <Button variant="outline" onClick={onCancel} disabled={isLoading}>
               Cancel
             </Button>
-            <Button onClick={onConfirm} className="bg-orange-600 hover:bg-orange-700">
-              Yes, Request Overtime
+            <Button 
+              onClick={onConfirm} 
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Requesting Overtime...
+                </>
+              ) : (
+                'Yes, Request Overtime'
+              )}
             </Button>
           </div>
         </div>
