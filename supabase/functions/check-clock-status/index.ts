@@ -367,8 +367,9 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date): Promise<n
       const exitTime = new Date(firstExit.timestamp);
       const graceMs = 5 * 60 * 1000;
       
-      // Only auto-clockout if grace period has passed AND still within 3-hour OT limit
-      if (now.getTime() - exitTime.getTime() >= graceMs && hrs <= 3) {
+      // Only auto-clockout if grace period has passed AND within 3-hour + 10min window
+      // This gives us 11 attempts to catch the geofence auto-clockout (3h to 3h10m)
+      if (now.getTime() - exitTime.getTime() >= graceMs && hrs >= 3 && hrs <= 3.167) {
         await autoClockOutOT(
           supabase,
           ot,
@@ -384,7 +385,9 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date): Promise<n
       }
     }
 
-    if (hrs >= 3) {
+    // Auto-clockout for 3-hour limit: check between 180-190 minutes (3h to 3h10m)
+    // This provides 11 attempts to ensure we don't miss the auto-clockout
+    if (hrs >= 3 && hrs <= 3.167) {
       await autoClockOutOT(
         supabase,
         ot,
