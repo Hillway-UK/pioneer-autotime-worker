@@ -433,13 +433,16 @@ async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string
   const now = new Date();
   const inTime = new Date(ot.clock_in);
   const totalHrs = (now.getTime() - inTime.getTime()) / 3.6e6;
+  const clockOutTime = now.toISOString();
 
-  console.log(`Attempting OT auto clock-out for entry=${ot.id}, worker=${ot.worker_id}`);
+  console.log(`🔄 Attempting OT auto clock-out for entry=${ot.id}, worker=${ot.worker_id}, hours=${totalHrs.toFixed(2)}`);
+  console.log(`📝 Update payload: clock_out=${clockOutTime}, type=${reason.includes("site") ? "geofence_based" : "ot_time_based"}`);
 
+  // Perform the update with service role (bypasses RLS)
   const { data: updated, error: updateError } = await supabase
     .from("clock_entries")
     .update({
-      clock_out: now.toISOString(),
+      clock_out: clockOutTime,
       auto_clocked_out: true,
       auto_clockout_type: reason.includes("site") ? "geofence_based" : "ot_time_based",
       total_hours: Math.max(0, totalHrs),
@@ -447,17 +450,34 @@ async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string
     })
     .eq("id", ot.id)
     .is("clock_out", null)
-    .select("id, clock_out, auto_clocked_out")
-    ;
+    .select("id, clock_out, auto_clocked_out, total_hours");
 
   if (updateError) {
-    console.error(`❌ Failed to update clock_entry ${ot.id}:`, updateError);
+    console.error(`❌ Update query failed for ${ot.id}:`, JSON.stringify(updateError));
     return;
   }
-  if (!updated?.length) {
-    console.error(`⚠️ No clock_entry updated for id ${ot.id} (maybe already clocked out or ID mismatch).`);
+  
+  if (!updated || updated.length === 0) {
+    console.error(`⚠️ Update returned 0 rows for ${ot.id}. Either already clocked out or RLS blocking.`);
+    
+    // Verify the entry still exists and is not clocked out
+    const { data: checkEntry } = await supabase
+      .from("clock_entries")
+      .select("id, clock_out, worker_id, is_overtime")
+      .eq("id", ot.id)
+      .maybeSingle();
+    
+    if (!checkEntry) {
+      console.error(`❌ Entry ${ot.id} not found in database!`);
+    } else if (checkEntry.clock_out) {
+      console.log(`✅ Entry ${ot.id} already has clock_out: ${checkEntry.clock_out}`);
+    } else {
+      console.error(`❌ CRITICAL: Entry ${ot.id} exists, has no clock_out, but update failed. Possible RLS/permission issue.`);
+    }
     return;
   }
+
+  console.log(`✅ Successfully updated clock_entry ${ot.id}:`, JSON.stringify(updated[0]));
 
   try {
     await supabase
