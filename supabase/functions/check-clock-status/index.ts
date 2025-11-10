@@ -196,7 +196,7 @@ async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string
 /* -------------------------------------------------------------------------- */
 /*                                NOTIFICATIONS                               */
 /* -------------------------------------------------------------------------- */
-async function sendNotification(supabase, id, title, body, type, date) {
+async function sendNotification(supabase: any, id: string, title: string, body: string, type: string, date: Date) {
   const key = `${id}:${date.toISOString().split("T")[0]}:${type}`;
   const { data: ex } = await supabase.from("notifications").select("id").eq("dedupe_key", key).maybeSingle();
   if (ex) return;
@@ -210,7 +210,7 @@ async function sendNotification(supabase, id, title, body, type, date) {
   });
 }
 
-async function logNotification(supabase, id, type, date) {
+async function logNotification(supabase: any, id: string, type: string, date: Date) {
   await supabase.from("notification_log").insert({
     worker_id: id,
     notification_type: type,
@@ -220,7 +220,7 @@ async function logNotification(supabase, id, type, date) {
   });
 }
 
-async function sendPushNotification(supabase, id, title, body) {
+async function sendPushNotification(supabase: any, id: string, title: string, body: string) {
   const { data } = await supabase
     .from("notification_preferences")
     .select("push_token")
