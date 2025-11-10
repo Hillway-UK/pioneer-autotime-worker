@@ -434,7 +434,9 @@ async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string
   const inTime = new Date(ot.clock_in);
   const totalHrs = (now.getTime() - inTime.getTime()) / 3.6e6;
 
-  await supabase
+  console.log(`Attempting OT auto clock-out for entry=${ot.id}, worker=${ot.worker_id}`);
+
+  const { data: updated, error: updateError } = await supabase
     .from("clock_entries")
     .update({
       clock_out: now.toISOString(),
@@ -443,14 +445,30 @@ async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string
       total_hours: Math.max(0, totalHrs),
       notes: `Auto clocked-out: ${reason}`,
     })
-    .eq("id", ot.id);
+    .eq("id", ot.id)
+    .is("clock_out", null)
+    .select("id, clock_out, auto_clocked_out")
+    ;
 
-  await supabase
-    .from("geofence_events")
-    .update({ resolved_at: now.toISOString() })
-    .eq("clock_entry_id", ot.id)
-    .eq("event_type", "exit_detected")
-    .is("resolved_at", null);
+  if (updateError) {
+    console.error(`❌ Failed to update clock_entry ${ot.id}:`, updateError);
+    return;
+  }
+  if (!updated?.length) {
+    console.error(`⚠️ No clock_entry updated for id ${ot.id} (maybe already clocked out or ID mismatch).`);
+    return;
+  }
+
+  try {
+    await supabase
+      .from("geofence_events")
+      .update({ resolved_at: now.toISOString() })
+      .eq("clock_entry_id", ot.id)
+      .eq("event_type", "exit_detected")
+      .is("resolved_at", null);
+  } catch (err) {
+    console.error(`⚠️ Failed to resolve geofence events for entry ${ot.id}:`, err);
+  }
 
   const title = reason.includes("site")
     ? "Auto Clocked-Out - Left Site During OT"
