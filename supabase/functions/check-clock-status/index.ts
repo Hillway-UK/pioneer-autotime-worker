@@ -338,93 +338,139 @@ async function hasLeftGeofence(supabase: any, workerId: string, jobId: string) {
 
 // ---------- Additional Helpers ----------
 
-async function checkActiveOvertimeSessions(supabase: any, date: Date): Promise<number> {
+async function checkActiveOvertimeSessions(supabase, date) {
   let clockedOut = 0;
-
-  const { data: activeOTs } = await supabase
+  const { data: activeOTs, error } = await supabase
     .from("clock_entries")
-    .select("id,worker_id,clock_in,job_id,is_overtime")
+    .select("id,worker_id,clock_in,job_id,is_overtime,status,auto_clocked_out")
     .eq("is_overtime", true)
-    .is("clock_out", null);
+    .is("clock_out", null)
+    .eq("auto_clocked_out", false);
 
-  if (!activeOTs || activeOTs.length === 0) return 0;
+  if (error) {
+    console.error("❌ Fetch OT entries failed:", error);
+    return 0;
+  }
+  if (!activeOTs?.length) return 0;
+
+  console.log(`🔍 Found ${activeOTs.length} active OT sessions`);
 
   for (const ot of activeOTs) {
-    const now = new Date();
-    const inTime = new Date(ot.clock_in);
-    const hrs = (now.getTime() - inTime.getTime()) / 3.6e6;
+    try {
+      if (ot.status && ot.status !== "pending") {
+        console.log(`⏭️ Skipping OT ${ot.id} — status = ${ot.status}`);
+        continue;
+      }
 
-    const { data: exitEvents } = await supabase
-      .from("geofence_events")
-      .select("id,timestamp")
-      .eq("clock_entry_id", ot.id)
-      .eq("event_type", "exit_detected")
-      .is("resolved_at", null)
-      .order("timestamp", { ascending: false });
+      const now = new Date();
+      const inTime = new Date(ot.clock_in);
+      const hrs = (now.getTime() - inTime.getTime()) / 3.6e6;
 
-    if (exitEvents && exitEvents.length > 0) {
-      const firstExit = exitEvents[exitEvents.length - 1];
-      const exitTime = new Date(firstExit.timestamp);
-      const graceMs = 5 * 60 * 1000;
+      // 🧭 Check geofence exit
+      const { data: exits } = await supabase
+        .from("geofence_events")
+        .select("timestamp")
+        .eq("clock_entry_id", ot.id)
+        .eq("event_type", "exit_detected")
+        .is("resolved_at", null)
+        .order("timestamp", { ascending: false });
 
-      // Only auto-clockout if grace period has passed
-      // Prefer the 3h-3h10m window (11 attempts if run every minute),
-      // but also add a catch-up to close stale sessions if the window was missed.
-      const passedGrace = now.getTime() - exitTime.getTime() >= graceMs;
-      if (passedGrace && hrs >= 3 && hrs <= 3.167) {
+      if (exits?.length) {
+        const exitTime = new Date(exits[exits.length - 1].timestamp);
+        const graceMs = 5 * 60 * 1000;
+        if (now.getTime() - exitTime.getTime() >= graceMs) {
+          await autoClockOutOT(
+            supabase,
+            ot,
+            date,
+            `Left job site at ${exitTime.toLocaleTimeString("en-GB")} during overtime`,
+            hrs,
+          );
+          clockedOut++;
+          continue;
+        }
+      }
+
+      // ⏱️ 3h → 3h10m window (runs 11 times)
+      if (hrs >= 3 && hrs <= 3.167) {
         await autoClockOutOT(
           supabase,
           ot,
           date,
-          `Left job site at ${exitTime.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })} during overtime`,
+          `3-hour OT limit reached (${hrs.toFixed(2)} h)`,
+          3,
         );
         clockedOut++;
         continue;
       }
-      if (passedGrace && hrs > 3.167) {
+
+      // 🕓 Catch-up for missed runs
+      if (hrs > 3.167) {
         await autoClockOutOT(
           supabase,
           ot,
           date,
-          `Left job site at ${exitTime.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })} during overtime (catch-up)`,
+          `Exceeded 3-hour OT limit (${hrs.toFixed(2)} h) — catch-up`,
+          3,
         );
         clockedOut++;
-        continue;
       }
-    }
-
-    // Auto-clockout for 3-hour limit:
-    // Primary window between 180-190 minutes (3h to 3h10m) for 11 attempts,
-    // plus a catch-up path if the window was missed.
-    if (hrs >= 3 && hrs <= 3.167) {
-      await autoClockOutOT(
-        supabase,
-        ot,
-        date,
-        "Maximum 3-hour overtime limit reached. If you worked longer, please request a time amendment.",
-      );
-      clockedOut++;
-      continue;
-    }
-    if (hrs > 3.167) {
-      await autoClockOutOT(supabase, ot, date, "Maximum 3-hour overtime limit reached. (catch-up)");
-      clockedOut++;
-      continue;
+    } catch (err) {
+      console.error(`❌ Error handling OT ${ot.id}:`, err);
     }
   }
 
+  console.log(`✅ Auto-clocked-out ${clockedOut} OT entries`);
   return clockedOut;
 }
 
-async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string) {
+async function autoClockOutOT(supabase, ot, date, reason, forcedHours = null) {
+  const now = new Date();
+  const inTime = new Date(ot.clock_in);
+  const actualHrs = (now.getTime() - inTime.getTime()) / 3.6e6;
+  const totalHrs = forcedHours ?? Math.max(0, actualHrs);
+  const cappedHrs = totalHrs > 3 ? 3 : totalHrs;
+
+  console.log(
+    `⏱️ Clocking-out OT ${ot.id} at ${cappedHrs.toFixed(2)} h — ${reason}`,
+  );
+
+  const { error } = await supabase
+    .from("clock_entries")
+    .update({
+      clock_out: now.toISOString(),
+      auto_clocked_out: true,
+      auto_clockout_type: reason.includes("site")
+        ? "geofence_based"
+        : "time_based",
+      total_hours: cappedHrs,
+      notes: `Auto clocked-out: ${reason}`,
+      status: "pending",
+    })
+    .eq("id", ot.id);
+
+  if (error) {
+    console.error(`❌ Update failed for OT ${ot.id}:`, error);
+    return;
+  }
+
+  await supabase
+    .from("geofence_events")
+    .update({ resolved_at: now.toISOString() })
+    .eq("clock_entry_id", ot.id)
+    .eq("event_type", "exit_detected")
+    .is("resolved_at", null);
+
+  const title = reason.includes("site")
+    ? "Auto Clocked-Out – Left Site During OT"
+    : "Auto Clocked-Out – 3 Hour OT Limit Reached";
+  const body = `You were automatically clocked out from overtime. ${reason}`;
+
+  await sendNotification(supabase, ot.worker_id, title, body, "ot_auto_clockout", date);
+  await logNotification(supabase, ot.worker_id, "ot_auto_clockout", date);
+  await sendPushNotification(supabase, ot.worker_id, title, body);
+}
+
   const now = new Date();
   const inTime = new Date(ot.clock_in);
   const totalHrs = (now.getTime() - inTime.getTime()) / 3.6e6;
@@ -558,3 +604,7 @@ function getClockOutTitle(t: string, e: string) {
   if (diff === 15) return "🏠 Time to Clock Out";
   return "Clock Out Reminder";
 }
+
+
+what does this edge function do?
+I want to autoclock out OT clock in after 3 hours and the autoclock out functionality should run on the 3rd hour and will continue to run for the next 10 minutes every minute so technically it will run for 11 times. 
