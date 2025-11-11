@@ -195,7 +195,11 @@ export default function Timesheets() {
   }, {} as Record<string, any[]>);
 
   // Calculate daily and weekly totals
-  const calculateHours = (clockIn: string, clockOut: string | null) => {
+  const calculateHours = (clockIn: string, clockOut: string | null, totalHours?: number | null) => {
+    // Use stored total_hours if available (important for OT entries with limits)
+    if (totalHours !== null && totalHours !== undefined) {
+      return totalHours;
+    }
     if (!clockOut) return 0;
     return differenceInMinutes(parseISO(clockOut), parseISO(clockIn)) / 60;
   };
@@ -205,7 +209,7 @@ export default function Timesheets() {
     if (entry.is_overtime && entry.ot_status !== 'approved') {
       return total;
     }
-    return total + calculateHours(entry.clock_in, entry.clock_out);
+    return total + calculateHours(entry.clock_in, entry.clock_out, entry.total_hours);
   }, 0);
 
   // Calculate pay totals
@@ -225,7 +229,7 @@ export default function Timesheets() {
 
   const calculateDayHours = (dayEntries: any[]) => {
     return dayEntries.reduce((total, entry) => 
-      total + calculateHours(entry.clock_in, entry.clock_out), 0);
+      total + calculateHours(entry.clock_in, entry.clock_out, entry.total_hours), 0);
   };
 
   const calculateDayHoursPay = (dayEntries: any[]) => {
@@ -547,8 +551,8 @@ export default function Timesheets() {
   const getAmendmentForEntry = (entryId: string) => existingAmendments.find(a => a.clock_entry_id === entryId);
   const getPendingAmendmentForEntry = (entryId: string) => 
     existingAmendments.find(a => a.clock_entry_id === entryId && a.status === 'pending');
-  const calculateEntryHours = (entry: any) => calculateHours(entry.clock_in, entry.clock_out).toFixed(2);
-  const calculateEntryPay = (entry: any) => (calculateHours(entry.clock_in, entry.clock_out) * workerHourlyRate).toFixed(2);
+  const calculateEntryHours = (entry: any) => calculateHours(entry.clock_in, entry.clock_out, entry.total_hours).toFixed(2);
+  const calculateEntryPay = (entry: any) => (calculateHours(entry.clock_in, entry.clock_out, entry.total_hours) * workerHourlyRate).toFixed(2);
   const changeWeek = (direction: 'prev' | 'next') => {
     setCurrentWeek(addDays(currentWeek, direction === 'prev' ? -7 : 7));
   };
