@@ -470,40 +470,6 @@ async function autoClockOutOT(supabase, ot, date, reason, forcedHours = null) {
   await logNotification(supabase, ot.worker_id, "ot_auto_clockout", date);
   await sendPushNotification(supabase, ot.worker_id, title, body);
 }
-
-  const now = new Date();
-  const inTime = new Date(ot.clock_in);
-  const totalHrs = (now.getTime() - inTime.getTime()) / 3.6e6;
-
-  await supabase
-    .from("clock_entries")
-    .update({
-      clock_out: now.toISOString(),
-      auto_clocked_out: true,
-      auto_clockout_type: reason.includes("site") ? "geofence_based" : "ot_time_based",
-      total_hours: Math.max(0, totalHrs),
-      notes: `Auto clocked-out: ${reason}`,
-    })
-    .eq("id", ot.id);
-
-  await supabase
-    .from("geofence_events")
-    .update({ resolved_at: now.toISOString() })
-    .eq("clock_entry_id", ot.id)
-    .eq("event_type", "exit_detected")
-    .is("resolved_at", null);
-
-  const title = reason.includes("site")
-    ? "Auto Clocked-Out - Left Site During OT"
-    : "Auto Clocked-Out - 3 Hour OT Limit Reached";
-  const body = `You were automatically clocked out from overtime. ${reason}`;
-
-  await sendNotification(supabase, ot.worker_id, title, body, "ot_auto_clockout", date);
-  await logNotification(supabase, ot.worker_id, "ot_auto_clockout", date);
-  await sendPushNotification(supabase, ot.worker_id, title, body);
-}
-
-//```ts
 async function getTodayEntry(supabase: any, id: string, date: Date): Promise<ClockEntry | null> {
   const d = date.toISOString().split("T")[0];
   const { data } = await supabase
