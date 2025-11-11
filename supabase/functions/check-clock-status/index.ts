@@ -338,7 +338,7 @@ async function hasLeftGeofence(supabase: any, workerId: string, jobId: string) {
 
 // ---------- Additional Helpers ----------
 
-async function checkActiveOvertimeSessions(supabase, date) {
+async function checkActiveOvertimeSessions(supabase: any, date: Date) {
   let clockedOut = 0;
   const { data: activeOTs, error } = await supabase
     .from("clock_entries")
@@ -424,7 +424,7 @@ async function checkActiveOvertimeSessions(supabase, date) {
   return clockedOut;
 }
 
-async function autoClockOutOT(supabase, ot, date, reason, forcedHours = null) {
+async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string, forcedHours: number | null = null) {
   const now = new Date();
   const inTime = new Date(ot.clock_in);
   const actualHrs = (now.getTime() - inTime.getTime()) / 3.6e6;
@@ -571,6 +571,3 @@ function getClockOutTitle(t: string, e: string) {
   return "Clock Out Reminder";
 }
 
-
-what does this edge function do?
-I want to autoclock out OT clock in after 3 hours and the autoclock out functionality should run on the 3rd hour and will continue to run for the next 10 minutes every minute so technically it will run for 11 times. 
