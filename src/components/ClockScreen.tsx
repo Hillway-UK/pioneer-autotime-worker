@@ -29,6 +29,7 @@ import OrganizationLogo from "@/components/OrganizationLogo";
 import PWAInstallDialog from "@/components/PWAInstallDialog";
 import NotificationPanel from "@/components/NotificationPanel";
 import OvertimeConfirmationDialog from "@/components/OvertimeConfirmationDialog";
+import RAMSAcceptanceDialog from "@/components/RAMSAcceptanceDialog";
 import { useWorker } from "@/contexts/WorkerContext";
 import { useUpdate } from "@/contexts/UpdateContext";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -112,6 +113,15 @@ export default function ClockScreen() {
     jobId: string;
   } | null>(null);
   const [isRequestingOvertime, setIsRequestingOvertime] = useState(false);
+
+  // RAMS acceptance state
+  const [showRAMSDialog, setShowRAMSDialog] = useState(false);
+  const [ramsData, setRamsData] = useState<{
+    jobName: string;
+    termsUrl: string | null;
+    waiverUrl: string | null;
+  } | null>(null);
+  const [loadingRAMS, setLoadingRAMS] = useState(false);
 
   // Set worker from context
   useEffect(() => {
@@ -753,6 +763,73 @@ export default function ClockScreen() {
     setLoading(true);
 
     try {
+      // Step 1: Fetch RAMS and Site Information documents
+      toast.info("Loading safety documents...");
+      
+      const { data: ramsInfo, error: ramsError } = await supabase.functions.invoke(
+        'validate-rams-acceptance',
+        {
+          body: {
+            worker_id: worker.id,
+            job_id: selectedJobId,
+          },
+        }
+      );
+
+      if (ramsError) {
+        console.error('RAMS fetch error:', ramsError);
+        toast.error("Failed to load safety documents");
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Show RAMS acceptance dialog
+      setRamsData({
+        jobName: ramsInfo.job_name,
+        termsUrl: ramsInfo.terms_and_conditions_url,
+        waiverUrl: ramsInfo.waiver_url,
+      });
+      setShowRAMSDialog(true);
+      setLoading(false);
+    } catch (error) {
+      console.error("Clock in error:", error);
+      toast.error("Failed to start clock-in process");
+      setLoading(false);
+    }
+  };
+
+  // Proceed with actual clock-in after RAMS acceptance
+  const proceedWithClockIn = async () => {
+    if (!selectedJobId || !worker || !ramsData) return;
+
+    setLoadingRAMS(true);
+
+    try {
+      // Record RAMS acceptance
+      const { error: acceptanceError } = await supabase.functions.invoke(
+        'record-rams-acceptance',
+        {
+          body: {
+            worker_id: worker.id,
+            job_id: selectedJobId,
+            terms_and_conditions_url: ramsData.termsUrl,
+            waiver_url: ramsData.waiverUrl,
+          },
+        }
+      );
+
+      if (acceptanceError) {
+        console.error('RAMS acceptance error:', acceptanceError);
+        toast.error("Failed to record acceptance");
+        setLoadingRAMS(false);
+        return;
+      }
+
+      // Close RAMS dialog
+      setShowRAMSDialog(false);
+      setLoadingRAMS(false);
+      setLoading(true);
+
       // Request fresh GPS location with validation
       toast.info("Getting your live location...");
       let freshLocation: LocationData;
@@ -1399,6 +1476,17 @@ export default function ClockScreen() {
           setLoading(false);
         }}
         isLoading={isRequestingOvertime}
+      />
+
+      {/* RAMS Acceptance Dialog */}
+      <RAMSAcceptanceDialog
+        open={showRAMSDialog}
+        onOpenChange={setShowRAMSDialog}
+        onAccept={proceedWithClockIn}
+        jobName={ramsData?.jobName || ""}
+        termsUrl={ramsData?.termsUrl || null}
+        waiverUrl={ramsData?.waiverUrl || null}
+        loading={loadingRAMS}
       />
     </div>
   );

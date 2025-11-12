@@ -44,6 +44,12 @@ verify_jwt = false
 [functions.track-location]
 verify_jwt = false
 
+[functions.validate-rams-acceptance]
+verify_jwt = true
+
+[functions.record-rams-acceptance]
+verify_jwt = true
+
 [analytics]
 enabled = false
 port = 54327
