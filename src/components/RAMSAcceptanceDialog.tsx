@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, FileText, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 interface RAMSAcceptanceDialogProps {
   open: boolean;
@@ -70,6 +71,16 @@ export default function RAMSAcceptanceDialog({
     }
   };
 
+  // Generate proxy URL for embedding files
+  const getProxyUrl = (fileUrl: string | null) => {
+    if (!fileUrl) return null;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    return `${supabaseUrl}/functions/v1/proxy-file?url=${encodeURIComponent(fileUrl)}`;
+  };
+
+  const proxyTermsUrl = getProxyUrl(termsUrl);
+  const proxyWaiverUrl = getProxyUrl(waiverUrl);
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
@@ -113,12 +124,11 @@ export default function RAMSAcceptanceDialog({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border rounded-md bg-muted/30 p-4">
-                  {termsUrl ? (
+                  {proxyTermsUrl ? (
                     <iframe
-                      src={termsUrl}
+                      src={proxyTermsUrl}
                       className="w-full h-[400px] rounded border-0"
                       title="RAMS Document"
-                      sandbox="allow-same-origin"
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
@@ -147,12 +157,11 @@ export default function RAMSAcceptanceDialog({
               </AccordionTrigger>
               <AccordionContent>
                 <div className="border rounded-md bg-muted/30 p-4">
-                  {waiverUrl ? (
+                  {proxyWaiverUrl ? (
                     <iframe
-                      src={waiverUrl}
+                      src={proxyWaiverUrl}
                       className="w-full h-[400px] rounded border-0"
                       title="Site Information Document"
-                      sandbox="allow-same-origin"
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
