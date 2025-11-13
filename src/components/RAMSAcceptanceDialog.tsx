@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, FileText, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
+import { buildJobDocumentUrl } from "@/lib/utils";
 
 interface RAMSAcceptanceDialogProps {
   open: boolean;
@@ -78,8 +79,9 @@ export default function RAMSAcceptanceDialog({
     return `${supabaseUrl}/functions/v1/proxy-file?url=${encodeURIComponent(fileUrl)}`;
   };
 
-  const proxyTermsUrl = getProxyUrl(termsUrl);
-  const proxyWaiverUrl = getProxyUrl(waiverUrl);
+  // Convert filenames to full URLs, then proxy them
+  const proxyTermsUrl = getProxyUrl(buildJobDocumentUrl(termsUrl));
+  const proxyWaiverUrl = getProxyUrl(buildJobDocumentUrl(waiverUrl));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
