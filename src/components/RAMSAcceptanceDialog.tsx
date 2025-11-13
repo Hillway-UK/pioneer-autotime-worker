@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,8 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, FileText, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { supabase } from "@/integrations/supabase/client";
-import { buildJobDocumentUrl } from "@/lib/utils";
+import { getPdfUrl } from "@/lib/pdfUtils";
+import RamsPdfViewer from "@/components/RamsPdfViewer";
 
 interface RAMSAcceptanceDialogProps {
   open: boolean;
@@ -44,6 +44,24 @@ export default function RAMSAcceptanceDialog({
     site: boolean;
   }>({ rams: false, site: false });
   const [confirmed, setConfirmed] = useState(false);
+  const [ramsPdfUrl, setRamsPdfUrl] = useState<string | null>(null);
+  const [sitePdfUrl, setSitePdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(true);
+
+  // Fetch PDF URLs when dialog opens
+  useEffect(() => {
+    if (open) {
+      setPdfLoading(true);
+      Promise.all([
+        getPdfUrl(termsUrl),
+        getPdfUrl(waiverUrl)
+      ]).then(([ramsUrl, siteUrl]) => {
+        setRamsPdfUrl(ramsUrl);
+        setSitePdfUrl(siteUrl);
+        setPdfLoading(false);
+      });
+    }
+  }, [open, termsUrl, waiverUrl]);
 
   // Track which accordions have been opened
   const handleAccordionChange = (value: string) => {
@@ -62,6 +80,11 @@ export default function RAMSAcceptanceDialog({
     if (!newOpen) {
       setOpenedSections({ rams: false, site: false });
       setConfirmed(false);
+      // Clean up object URLs
+      if (ramsPdfUrl) URL.revokeObjectURL(ramsPdfUrl);
+      if (sitePdfUrl) URL.revokeObjectURL(sitePdfUrl);
+      setRamsPdfUrl(null);
+      setSitePdfUrl(null);
     }
     onOpenChange(newOpen);
   };
@@ -71,17 +94,6 @@ export default function RAMSAcceptanceDialog({
       onAccept();
     }
   };
-
-  // Generate proxy URL for embedding files
-  const getProxyUrl = (fileUrl: string | null) => {
-    if (!fileUrl) return null;
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    return `${supabaseUrl}/functions/v1/proxy-file?url=${encodeURIComponent(fileUrl)}`;
-  };
-
-  // Convert filenames to full URLs, then proxy them
-  const proxyTermsUrl = getProxyUrl(buildJobDocumentUrl(termsUrl));
-  const proxyWaiverUrl = getProxyUrl(buildJobDocumentUrl(waiverUrl));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -125,22 +137,7 @@ export default function RAMSAcceptanceDialog({
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border rounded-md bg-muted/30 p-4">
-                  {proxyTermsUrl ? (
-                    <iframe
-                      src={proxyTermsUrl}
-                      className="w-full h-[400px] rounded border-0"
-                      title="RAMS Document"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                      <Info className="h-8 w-8 mb-2 opacity-50" />
-                      <p className="text-center">
-                        RAMS document is not available for this job site.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <RamsPdfViewer url={ramsPdfUrl} isLoading={pdfLoading} />
               </AccordionContent>
             </AccordionItem>
 
@@ -158,22 +155,7 @@ export default function RAMSAcceptanceDialog({
                 </div>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="border rounded-md bg-muted/30 p-4">
-                  {proxyWaiverUrl ? (
-                    <iframe
-                      src={proxyWaiverUrl}
-                      className="w-full h-[400px] rounded border-0"
-                      title="Site Information Document"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                      <Info className="h-8 w-8 mb-2 opacity-50" />
-                      <p className="text-center">
-                        Site Information document is not available for this job site.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <RamsPdfViewer url={sitePdfUrl} isLoading={pdfLoading} />
               </AccordionContent>
             </AccordionItem>
           </Accordion>
