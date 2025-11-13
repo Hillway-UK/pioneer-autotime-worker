@@ -5,6 +5,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Converts a job document filename to a full Supabase Storage URL
+ */
+function buildJobDocumentUrl(fileName: string | null | undefined): string | null {
+  if (!fileName) return null;
+  
+  if (fileName.startsWith('http://') || fileName.startsWith('https://')) {
+    return fileName;
+  }
+  
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  return `${supabaseUrl}/storage/v1/object/public/job-documents/${fileName}`;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -75,8 +89,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         job_id: job.id,
         job_name: job.name,
-        terms_and_conditions_url: job.terms_and_conditions_url,
-        waiver_url: job.waiver_url,
+        terms_and_conditions_url: buildJobDocumentUrl(job.terms_and_conditions_url),
+        waiver_url: buildJobDocumentUrl(job.waiver_url),
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
