@@ -3,8 +3,8 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AlertCircle } from "lucide-react";
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+// Configure PDF.js worker - use unpkg for reliable worker delivery
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 interface RamsPdfViewerProps {
   url: string | null;
@@ -68,8 +68,8 @@ export default function RamsPdfViewer({ url, isLoading = false }: RamsPdfViewerP
             <Page
               key={`page_${index + 1}`}
               pageNumber={index + 1}
-              renderAnnotationLayer={true}
-              renderTextLayer={true}
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
               className="mb-4"
               width={Math.min(window.innerWidth * 0.6, 800)}
             />
