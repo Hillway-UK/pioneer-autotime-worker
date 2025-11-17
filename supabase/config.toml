@@ -38,6 +38,9 @@ pop3_port = 54327
 [functions.check-clock-status]
 verify_jwt = false
 
+[functions.check-grace-expiry]
+verify_jwt = false
+
 [functions.send-amendment-notification]
 verify_jwt = false
 
