@@ -373,10 +373,11 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date) {
         .eq("clock_entry_id", ot.id)
         .eq("event_type", "exit_detected")
         .is("resolved_at", null)
-        .order("timestamp", { ascending: false });
+        .order("timestamp", { ascending: false })
+        .limit(1);
 
       if (exits?.length) {
-        const exitTime = new Date(exits[exits.length - 1].timestamp);
+        const exitTime = new Date(exits[0].timestamp); // Most recent exit
         const graceMs = 5 * 60 * 1000;
         if (now.getTime() - exitTime.getTime() >= graceMs) {
           await autoClockOutOT(
