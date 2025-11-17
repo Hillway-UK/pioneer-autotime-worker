@@ -73,24 +73,26 @@ Deno.serve(async (req) => {
         .eq('clock_entry_id', entry.id)
         .eq('event_type', 'exit_detected')
         .is('resolved_at', null)
-        .order('timestamp', { ascending: false });
+        .order('timestamp', { ascending: false })
+        .limit(1);
 
       if (exitEvents && exitEvents.length > 0) {
-        // Get the earliest unresolved exit event
-        const firstExitEvent = exitEvents[exitEvents.length - 1];
-        const exitTime = new Date(firstExitEvent.timestamp);
+        // Get the most recent unresolved exit event
+        const exitEvent = exitEvents[0];
+        const exitTime = new Date(exitEvent.timestamp);
         const gracePeriodMs = GRACE_PERIOD_MINUTES * 60 * 1000;
         const timeSinceExit = now.getTime() - exitTime.getTime();
+        const minutesSinceExit = timeSinceExit / (1000 * 60);
 
         console.log(
           `[OT Auto Clock-Out] Entry ${entry.id}: Exit detected at ${exitTime.toISOString()}, ` +
-          `${(timeSinceExit / 1000 / 60).toFixed(2)} minutes ago`
+          `${minutesSinceExit.toFixed(2)} minutes ago (grace: ${GRACE_PERIOD_MINUTES} min)`
         );
 
         // Only auto-clockout if grace period has passed
         if (timeSinceExit >= gracePeriodMs) {
           console.log(
-            `[OT Auto Clock-Out] Entry ${entry.id}: Grace period (${GRACE_PERIOD_MINUTES} min) exceeded, auto-clocking out`
+            `[OT Auto Clock-Out] Entry ${entry.id}: Grace period exceeded by ${(minutesSinceExit - GRACE_PERIOD_MINUTES).toFixed(2)} min, auto-clocking out`
           );
           const exitTimeFormatted = exitTime.toLocaleTimeString('en-US', { 
             hour: 'numeric', 
@@ -106,7 +108,7 @@ Deno.serve(async (req) => {
           continue;
         } else {
           console.log(
-            `[OT Auto Clock-Out] Entry ${entry.id}: Still within grace period, not auto-clocking out yet`
+            `[OT Auto Clock-Out] Entry ${entry.id}: Still within grace period (${(GRACE_PERIOD_MINUTES - minutesSinceExit).toFixed(2)} min remaining)`
           );
         }
       }
