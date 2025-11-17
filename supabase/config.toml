@@ -53,6 +53,9 @@ verify_jwt = true
 [functions.proxy-file]
 verify_jwt = false
 
+[functions.check-rams-acceptance-today]
+verify_jwt = true
+
 [analytics]
 enabled = false
 port = 54327

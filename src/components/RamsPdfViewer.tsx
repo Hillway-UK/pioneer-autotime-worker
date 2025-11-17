@@ -3,8 +3,11 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AlertCircle } from "lucide-react";
 
-// Configure PDF.js worker - use unpkg for reliable worker delivery
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// Configure PDF.js worker - use bundled worker from node_modules via Vite
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 interface RamsPdfViewerProps {
   url: string | null;
