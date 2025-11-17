@@ -4,10 +4,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AlertCircle } from "lucide-react";
 
 // Configure PDF.js worker - use bundled worker from node_modules via Vite
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
 interface RamsPdfViewerProps {
   url: string | null;
@@ -30,9 +27,7 @@ export default function RamsPdfViewer({ url, isLoading = false }: RamsPdfViewerP
     return (
       <div className="border rounded-lg bg-muted/30 p-6 text-center">
         <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Document is not available for this job site.
-        </p>
+        <p className="text-sm text-muted-foreground">Document is not available for this job site.</p>
       </div>
     );
   }
@@ -41,9 +36,7 @@ export default function RamsPdfViewer({ url, isLoading = false }: RamsPdfViewerP
     return (
       <div className="border rounded-lg bg-destructive/10 p-6 text-center">
         <AlertCircle className="h-8 w-8 mx-auto mb-2 text-destructive" />
-        <p className="text-sm text-destructive">
-          Failed to load document. Please try again.
-        </p>
+        <p className="text-sm text-destructive">Failed to load document. Please try again.</p>
       </div>
     );
   }
@@ -62,7 +55,7 @@ export default function RamsPdfViewer({ url, isLoading = false }: RamsPdfViewerP
         }}
         loading={
           <div className="p-6">
-            <LoadingSpinner message="Rendering PDF..." />
+            <LoadingSpinner message="Loading Document..." />
           </div>
         }
       >
