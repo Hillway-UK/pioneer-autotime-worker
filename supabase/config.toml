@@ -41,6 +41,9 @@ verify_jwt = false
 [functions.check-grace-expiry]
 verify_jwt = false
 
+[functions.check-ot-autoclockout]
+verify_jwt = false
+
 [functions.send-amendment-notification]
 verify_jwt = false
 

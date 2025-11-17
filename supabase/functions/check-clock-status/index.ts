@@ -344,14 +344,16 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date) {
     .from("clock_entries")
     .select("id,worker_id,clock_in,job_id,is_overtime,status,auto_clocked_out")
     .eq("is_overtime", true)
-    .is("clock_out", null)
-    .eq("auto_clocked_out", false);
+    .is("clock_out", null);
 
   if (error) {
     console.error("❌ Fetch OT entries failed:", error);
     return 0;
   }
-  if (!activeOTs?.length) return 0;
+  if (!activeOTs?.length) {
+    console.log("📋 No active OT entries found to check");
+    return 0;
+  }
 
   console.log(`🔍 Found ${activeOTs.length} active OT sessions`);
 
@@ -379,7 +381,11 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date) {
       if (exits?.length) {
         const exitTime = new Date(exits[0].timestamp); // Most recent exit
         const graceMs = 5 * 60 * 1000;
+        const minutesSinceExit = (now.getTime() - exitTime.getTime()) / (1000 * 60);
+        console.log(`🧭 OT ${ot.id}: Exit detected ${minutesSinceExit.toFixed(2)} min ago (grace: 5 min)`);
+        
         if (now.getTime() - exitTime.getTime() >= graceMs) {
+          console.log(`✅ OT ${ot.id}: Grace period exceeded, auto-clocking out`);
           await autoClockOutOT(
             supabase,
             ot,
@@ -389,6 +395,8 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date) {
           );
           clockedOut++;
           continue;
+        } else {
+          console.log(`⏳ OT ${ot.id}: Still within grace period`);
         }
       }
 
