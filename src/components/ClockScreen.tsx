@@ -763,7 +763,31 @@ export default function ClockScreen() {
     setLoading(true);
 
     try {
-      // Step 1: Fetch RAMS and Site Information documents
+      // Step 1: Check if already accepted RAMS today for this site
+      const { data: acceptanceCheck, error: checkError } = await supabase.functions.invoke(
+        'check-rams-acceptance-today',
+        {
+          body: {
+            worker_id: worker.id,
+            job_id: selectedJobId,
+          },
+        }
+      );
+
+      if (checkError) {
+        console.error('Acceptance check error:', checkError);
+        // Continue anyway - don't block clock-in on check failure
+      }
+
+      // If already accepted today, skip RAMS dialog
+      if (acceptanceCheck?.already_accepted) {
+        console.log('RAMS already accepted today, skipping dialog');
+        toast.info("Proceeding with clock-in...");
+        await proceedWithClockInWithoutRAMS();
+        return;
+      }
+
+      // Step 2: Fetch RAMS and Site Information documents
       toast.info("Loading safety documents...");
       
       const { data: ramsInfo, error: ramsError } = await supabase.functions.invoke(
@@ -783,7 +807,7 @@ export default function ClockScreen() {
         return;
       }
 
-      // Step 2: Show RAMS acceptance dialog
+      // Step 3: Show RAMS acceptance dialog
       setRamsData({
         jobName: ramsInfo.job_name,
         termsUrl: ramsInfo.terms_and_conditions_url,
@@ -796,6 +820,99 @@ export default function ClockScreen() {
       toast.error("Failed to start clock-in process");
       setLoading(false);
     }
+  };
+
+  // Proceed with clock-in without RAMS dialog (already accepted today)
+  const proceedWithClockInWithoutRAMS = async () => {
+    if (!selectedJobId || !worker) return;
+
+    setLoading(true);
+
+    try {
+      // Request fresh GPS location with validation
+      toast.info("Getting your live location...");
+      let freshLocation: LocationData;
+
+      try {
+        freshLocation = await requestFreshLocation();
+      } catch (locationError: any) {
+        toast.error(locationError.message || "Failed to get accurate location");
+        setLoading(false);
+        return;
+      }
+
+      // Check geofence with fresh location
+      const job = jobs.find((j) => j.id === selectedJobId);
+      if (!job) {
+        toast.error("Selected job not found");
+        setLoading(false);
+        return;
+      }
+
+      const distance = calculateDistance(freshLocation.lat, freshLocation.lng, job.latitude, job.longitude);
+
+      console.log("📍 Fresh location:", {
+        lat: freshLocation.lat,
+        lng: freshLocation.lng,
+        accuracy: freshLocation.accuracy,
+        timestamp: freshLocation.timestamp,
+        age: freshLocation.timestamp ? Date.now() - freshLocation.timestamp : "unknown",
+        distance: Math.round(distance),
+        radius: job.geofence_radius,
+      });
+
+      // Validate geofence
+      if (distance > job.geofence_radius) {
+        toast.error(
+          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Take photo
+      const photoBlob = await capturePhoto();
+      const photoUrl = await uploadPhoto(photoBlob);
+
+      // Check if past shift end time (overtime)
+      if (isPastShiftEnd()) {
+        setPendingOvertimeData({
+          photoUrl,
+          location: freshLocation,
+          jobId: selectedJobId
+        });
+        setShowOvertimeDialog(true);
+        setLoading(false);
+        return;
+      }
+
+      // Create regular clock entry with fresh location
+      const { data, error } = await supabase
+        .from("clock_entries")
+        .insert({
+          worker_id: worker.id,
+          job_id: selectedJobId,
+          clock_in: new Date().toISOString(),
+          clock_in_photo: photoUrl,
+          clock_in_lat: freshLocation.lat,
+          clock_in_lng: freshLocation.lng,
+        })
+        .select("*, jobs(name)")
+        .single();
+
+      if (error) {
+        toast.error("Failed to clock in: " + error.message);
+        return;
+      }
+
+      setCurrentEntry(data);
+      toast.success("Clocked in successfully!");
+    } catch (error) {
+      console.error("Clock in error:", error);
+      toast.error("Failed to clock in");
+    }
+
+    setLoading(false);
   };
 
   // Proceed with actual clock-in after RAMS acceptance
