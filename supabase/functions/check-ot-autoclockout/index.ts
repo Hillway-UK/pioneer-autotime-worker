@@ -102,7 +102,8 @@ Deno.serve(async (req) => {
           await autoClockOut(
             supabase, 
             entry, 
-            `Left job site at ${exitTimeFormatted} during overtime`
+            `Left job site at ${exitTimeFormatted} during overtime`,
+            "geofence"
           );
           autoClockedOut++;
           continue;
@@ -121,7 +122,8 @@ Deno.serve(async (req) => {
         await autoClockOut(
           supabase, 
           entry, 
-          'Maximum 3-hour overtime limit reached. If you worked longer, please request a time amendment.'
+          'Maximum 3-hour overtime limit reached. If you worked longer, please request a time amendment.',
+          "time-based"
         );
         autoClockedOut++;
       }
@@ -156,7 +158,8 @@ Deno.serve(async (req) => {
 async function autoClockOut(
   supabase: any,
   entry: ActiveOT,
-  reason: string
+  reason: string,
+  type: "geofence" | "time-based"
 ): Promise<void> {
   const clockOutTime = new Date().toISOString();
 
@@ -180,6 +183,9 @@ async function autoClockOut(
         clock_out: clockOutTime,
         auto_clocked_out: true,
         auto_clockout_reason: reason,
+        auto_clockout_type: type,
+        source: "system_auto",
+        photo_required: false,
         total_hours: totalHours,
         notes: `Auto clocked-out OT (${reason})`,
       })
