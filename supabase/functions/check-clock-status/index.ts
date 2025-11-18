@@ -450,8 +450,10 @@ async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string
       clock_out: now.toISOString(),
       auto_clocked_out: true,
       auto_clockout_type: reason.includes("site")
-        ? "geofence_based"
-        : "time_based",
+        ? "geofence"
+        : "time-based",
+      source: "system_auto",
+      photo_required: false,
       total_hours: cappedHrs,
       notes: `Auto clocked-out: ${reason}`,
       status: "pending",
