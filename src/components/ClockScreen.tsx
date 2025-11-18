@@ -63,6 +63,7 @@ interface ClockEntry {
   clock_in: string;
   clock_out?: string;
   jobs: { name: string };
+  is_overtime?: boolean;
 }
 
 interface LocationData {
@@ -267,7 +268,7 @@ export default function ClockScreen() {
   };
 
   const startLocationTracking = () => {
-    if (!worker?.shift_end || !currentEntry) return;
+    if (!currentEntry) return;
 
     console.log("Starting background location tracking...");
     setIsTrackingLocation(true);
@@ -314,13 +315,26 @@ export default function ClockScreen() {
 
   // Manage location tracking based on clock status and last hour window
   useEffect(() => {
-    if (currentEntry && worker?.shift_end && !currentEntry.clock_out) {
-      const isInLastHour = checkIsInLastHourWindow(worker.shift_end);
-
-      if (isInLastHour && !isTrackingLocation) {
-        startLocationTracking();
-      } else if (!isInLastHour && isTrackingLocation) {
-        stopLocationTracking();
+    if (currentEntry && !currentEntry.clock_out) {
+      // For OT sessions, always track location
+      const isOT = currentEntry.is_overtime === true;
+      
+      if (isOT) {
+        if (!isTrackingLocation) {
+          console.log("🔵 OT session detected - starting continuous location tracking");
+          startLocationTracking();
+        }
+      } else {
+        // For regular shifts, only track in last hour window
+        if (worker?.shift_end) {
+          const isInLastHour = checkIsInLastHourWindow(worker.shift_end);
+          
+          if (isInLastHour && !isTrackingLocation) {
+            startLocationTracking();
+          } else if (!isInLastHour && isTrackingLocation) {
+            stopLocationTracking();
+          }
+        }
       }
     } else if (isTrackingLocation) {
       stopLocationTracking();
@@ -428,7 +442,22 @@ export default function ClockScreen() {
       }
 
       console.log("🔧 DEBUG: Current entry data:", currentEntryData);
-      setCurrentEntry(currentEntryData);
+      
+      // Fetch is_overtime field separately and add it to the entry
+      if (currentEntryData) {
+        const { data: otData } = await (supabase as any)
+          .from("clock_entries")
+          .select("is_overtime")
+          .eq("id", currentEntryData.id)
+          .single();
+        
+        setCurrentEntry({
+          ...currentEntryData,
+          is_overtime: otData?.is_overtime
+        } as any);
+      } else {
+        setCurrentEntry(currentEntryData);
+      }
 
       // Fetch expenses for current shift if clocked in
       if (currentEntryData) {
