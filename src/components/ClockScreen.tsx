@@ -793,8 +793,6 @@ export default function ClockScreen() {
 
     try {
       // Step 1: Fetch RAMS and Site Information documents + flag
-      toast.info("Loading safety documents...");
-      
       const { data: ramsInfo, error: ramsError } = await supabase.functions.invoke(
         'validate-rams-acceptance',
         {
@@ -825,6 +823,7 @@ export default function ClockScreen() {
       }
       
       console.log('RAMS enabled for this job, proceeding with RAMS flow');
+      toast.info("Loading safety documents...");
 
       // Step 3: Check if already accepted RAMS today for this site
       const { data: acceptanceCheck, error: checkError } = await supabase.functions.invoke(
