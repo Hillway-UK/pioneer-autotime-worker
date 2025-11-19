@@ -792,7 +792,35 @@ export default function ClockScreen() {
     setLoading(true);
 
     try {
-      // Step 1: Check if already accepted RAMS today for this site
+      // Step 1: Fetch RAMS and Site Information documents + flag
+      toast.info("Loading safety documents...");
+      
+      const { data: ramsInfo, error: ramsError } = await supabase.functions.invoke(
+        'validate-rams-acceptance',
+        {
+          body: {
+            worker_id: worker.id,
+            job_id: selectedJobId,
+          },
+        }
+      );
+
+      if (ramsError) {
+        console.error('RAMS fetch error:', ramsError);
+        toast.error("Failed to load safety documents");
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Check if RAMS is disabled for this job
+      if (ramsInfo.show_rams_and_site_info === false) {
+        console.log('RAMS disabled for this job, proceeding with clock-in');
+        toast.info("Proceeding with clock-in...");
+        await proceedWithClockInWithoutRAMS();
+        return;
+      }
+
+      // Step 3: Check if already accepted RAMS today for this site
       const { data: acceptanceCheck, error: checkError } = await supabase.functions.invoke(
         'check-rams-acceptance-today',
         {
@@ -816,27 +844,7 @@ export default function ClockScreen() {
         return;
       }
 
-      // Step 2: Fetch RAMS and Site Information documents
-      toast.info("Loading safety documents...");
-      
-      const { data: ramsInfo, error: ramsError } = await supabase.functions.invoke(
-        'validate-rams-acceptance',
-        {
-          body: {
-            worker_id: worker.id,
-            job_id: selectedJobId,
-          },
-        }
-      );
-
-      if (ramsError) {
-        console.error('RAMS fetch error:', ramsError);
-        toast.error("Failed to load safety documents");
-        setLoading(false);
-        return;
-      }
-
-      // Step 3: Show RAMS acceptance dialog
+      // Step 4: Show RAMS acceptance dialog
       setRamsData({
         jobName: ramsInfo.job_name,
         termsUrl: ramsInfo.terms_and_conditions_url,
