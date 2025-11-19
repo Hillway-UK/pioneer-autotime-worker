@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     // Fetch job details with RAMS and Site Information URLs
     const { data: job, error: jobError } = await supabaseClient
       .from('jobs')
-      .select('id, name, terms_and_conditions_url, waiver_url')
+      .select('id, name, terms_and_conditions_url, waiver_url, show_rams_and_site_info')
       .eq('id', job_id)
       .single();
 
@@ -91,6 +91,7 @@ Deno.serve(async (req) => {
         job_name: job.name,
         terms_and_conditions_url: buildJobDocumentUrl(job.terms_and_conditions_url),
         waiver_url: buildJobDocumentUrl(job.waiver_url),
+        show_rams_and_site_info: job.show_rams_and_site_info ?? true,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
