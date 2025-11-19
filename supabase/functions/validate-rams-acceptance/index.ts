@@ -83,7 +83,11 @@ Deno.serve(async (req) => {
       job_id: job.id,
       has_rams: !!job.terms_and_conditions_url,
       has_site_info: !!job.waiver_url,
+      show_rams_and_site_info: job.show_rams_and_site_info,
+      show_rams_type: typeof job.show_rams_and_site_info,
     });
+    
+    console.log('Full job object from DB:', job);
 
     return new Response(
       JSON.stringify({
