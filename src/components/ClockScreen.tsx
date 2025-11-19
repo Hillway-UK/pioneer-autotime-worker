@@ -805,6 +805,10 @@ export default function ClockScreen() {
         }
       );
 
+      console.log('RAMS Info Response:', ramsInfo);
+      console.log('show_rams_and_site_info value:', ramsInfo?.show_rams_and_site_info);
+      console.log('Type of show_rams_and_site_info:', typeof ramsInfo?.show_rams_and_site_info);
+
       if (ramsError) {
         console.error('RAMS fetch error:', ramsError);
         toast.error("Failed to load safety documents");
@@ -813,12 +817,14 @@ export default function ClockScreen() {
       }
 
       // Step 2: Check if RAMS is disabled for this job
-      if (ramsInfo.show_rams_and_site_info === false) {
-        console.log('RAMS disabled for this job, proceeding with clock-in');
+      if (ramsInfo?.show_rams_and_site_info === false) {
+        console.log('RAMS disabled for this job (show_rams_and_site_info === false), proceeding with clock-in');
         toast.info("Proceeding with clock-in...");
         await proceedWithClockInWithoutRAMS();
         return;
       }
+      
+      console.log('RAMS enabled for this job, proceeding with RAMS flow');
 
       // Step 3: Check if already accepted RAMS today for this site
       const { data: acceptanceCheck, error: checkError } = await supabase.functions.invoke(
