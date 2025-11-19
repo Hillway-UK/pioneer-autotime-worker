@@ -761,6 +761,27 @@ export default function ClockScreen() {
         return;
       }
 
+      // Record RAMS acceptance after successful OT clock-in
+      if (ramsData) {
+        const { error: acceptanceError } = await supabase.functions.invoke(
+          'record-rams-acceptance',
+          {
+            body: {
+              worker_id: worker.id,
+              job_id: pendingOvertimeData.jobId,
+              terms_and_conditions_url: ramsData.termsUrl,
+              waiver_url: ramsData.waiverUrl,
+            },
+          }
+        );
+
+        if (acceptanceError) {
+          console.error('⚠️ RAMS acceptance recording failed for OT:', acceptanceError);
+          // Don't fail the clock-in, just log the error
+          // Worker is already clocked in successfully
+        }
+      }
+
       // Send notification
       const dedupeKey = `ot_request_${worker.id}_${new Date().toISOString().split('T')[0]}`;
       await NotificationService.sendDualNotification(
@@ -964,26 +985,6 @@ export default function ClockScreen() {
     setLoadingRAMS(true);
 
     try {
-      // Record RAMS acceptance
-      const { error: acceptanceError } = await supabase.functions.invoke(
-        'record-rams-acceptance',
-        {
-          body: {
-            worker_id: worker.id,
-            job_id: selectedJobId,
-            terms_and_conditions_url: ramsData.termsUrl,
-            waiver_url: ramsData.waiverUrl,
-          },
-        }
-      );
-
-      if (acceptanceError) {
-        console.error('RAMS acceptance error:', acceptanceError);
-        toast.error("Failed to record acceptance");
-        setLoadingRAMS(false);
-        return;
-      }
-
       // Close RAMS dialog
       setShowRAMSDialog(false);
       setLoadingRAMS(false);
@@ -1063,6 +1064,27 @@ export default function ClockScreen() {
       if (error) {
         toast.error("Failed to clock in: " + error.message);
         return;
+      }
+
+      // Record RAMS acceptance after successful clock-in
+      if (ramsData) {
+        const { error: acceptanceError } = await supabase.functions.invoke(
+          'record-rams-acceptance',
+          {
+            body: {
+              worker_id: worker.id,
+              job_id: selectedJobId,
+              terms_and_conditions_url: ramsData.termsUrl,
+              waiver_url: ramsData.waiverUrl,
+            },
+          }
+        );
+
+        if (acceptanceError) {
+          console.error('⚠️ RAMS acceptance recording failed:', acceptanceError);
+          // Don't fail the clock-in, just log the error
+          // Worker is already clocked in successfully
+        }
       }
 
       setCurrentEntry(data);
