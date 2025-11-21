@@ -80,7 +80,7 @@ export default function ExportTimesheetDialog({
       ['Name:', workerName],
       ['Date Range:', dateRangeStr],
       [],
-      ['Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Note']
+      ['Date', 'Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Note']
     ];
 
     let totalHours = 0;
@@ -98,6 +98,7 @@ export default function ExportTimesheetDialog({
       if (entry.notes) note = note ? `${note}, ${entry.notes}` : entry.notes;
 
       rows.push([
+        entry.clock_in ? format(new Date(entry.clock_in), 'EEE, MMM d') : '',
         entry.jobs?.code || '',
         entry.jobs?.name || 'Unknown Job',
         entry.clock_in ? format(new Date(entry.clock_in), 'h:mm a') : '',
@@ -109,20 +110,21 @@ export default function ExportTimesheetDialog({
     });
 
     rows.push([]);
-    rows.push(['', '', '', 'Total Hours:', totalHours.toFixed(2), '', '']);
-    rows.push(['', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']);
+    rows.push(['', '', '', '', 'Total Hours:', totalHours.toFixed(2), '', '']);
+    rows.push(['', '', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     
     // Set column widths
     ws['!cols'] = [
-      { wch: 15 },
-      { wch: 25 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 30 }
+      { wch: 14 },  // Date
+      { wch: 15 },  // Job Site Code
+      { wch: 25 },  // Job Name
+      { wch: 12 },  // Clock In
+      { wch: 12 },  // Clock Out
+      { wch: 12 },  // Total Hours
+      { wch: 10 },  // Rate
+      { wch: 30 }   // Note
     ];
 
     // Add borders to all cells
@@ -183,6 +185,7 @@ export default function ExportTimesheetDialog({
       if (entry.notes) note = note ? `${note}, ${entry.notes}` : entry.notes;
 
       return [
+        entry.clock_in ? format(new Date(entry.clock_in), 'EEE, MMM d') : '',
         entry.jobs?.code || '',
         entry.jobs?.name || 'Unknown Job',
         entry.clock_in ? format(new Date(entry.clock_in), 'h:mm a') : '',
@@ -202,14 +205,14 @@ export default function ExportTimesheetDialog({
     });
 
     autoTable(doc, {
-      head: [['Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Note']],
+      head: [['Date', 'Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Note']],
       body: tableData,
       startY: 45,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [128, 0, 0] }, // Maroon color
       foot: [
-        ['', '', '', 'Total Hours:', totalHours.toFixed(2), '', ''],
-        ['', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']
+        ['', '', '', '', 'Total Hours:', totalHours.toFixed(2), '', ''],
+        ['', '', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']
       ],
       footStyles: { 
         fillColor: [128, 0, 0], // Maroon background
