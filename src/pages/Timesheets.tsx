@@ -840,7 +840,7 @@ export default function Timesheets() {
                       
                       {/* Action Buttons */}
                       <div className="mt-3 flex space-x-2">
-                        {entry.clock_out && (() => {
+                        {entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && (() => {
                           const pendingAmendment = getPendingAmendmentForEntry(entry.id);
                           const amendment = getAmendmentForEntry(entry.id);
                           
@@ -871,7 +871,7 @@ export default function Timesheets() {
                           return null;
                         })()}
                         
-                        {!entry.additional_costs?.length && entry.clock_out && (
+                        {!entry.additional_costs?.length && entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && (
                           <button
                             onClick={() => openExpenseDialog(entry)}
                             className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
