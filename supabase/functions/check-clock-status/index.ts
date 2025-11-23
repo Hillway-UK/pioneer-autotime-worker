@@ -376,7 +376,7 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date) {
   let clockedOut = 0;
   const { data: activeOTs, error } = await supabase
     .from("clock_entries")
-    .select("id,worker_id,clock_in,job_id,is_overtime,status,auto_clocked_out")
+    .select("id,worker_id,clock_in,job_id,is_overtime,ot_status,auto_clocked_out")
     .eq("is_overtime", true)
     .is("clock_out", null);
 
@@ -393,8 +393,8 @@ async function checkActiveOvertimeSessions(supabase: any, date: Date) {
 
   for (const ot of activeOTs) {
     try {
-      if (ot.status && ot.status !== "pending") {
-        console.log(`⏭️ Skipping OT ${ot.id} — status = ${ot.status}`);
+      if (ot.ot_status && ot.ot_status !== "pending") {
+        console.log(`⏭️ Skipping OT ${ot.id} — ot_status = ${ot.ot_status}`);
         continue;
       }
 
@@ -490,7 +490,7 @@ async function autoClockOutOT(supabase: any, ot: any, date: Date, reason: string
       photo_required: false,
       total_hours: cappedHrs,
       notes: `Auto clocked-out: ${reason}`,
-      status: "pending",
+      ot_status: "pending",
     })
     .eq("id", ot.id);
 
