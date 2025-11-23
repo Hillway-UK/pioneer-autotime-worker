@@ -77,29 +77,33 @@ serve(async (req) => {
     const { dateStr, timeHHmm, dayOfWeek } = nowInTz("Europe/London");
     const siteDate = new Date(`${dateStr}T00:00:00Z`);
 
-    // Skip weekends
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      return new Response(JSON.stringify({ message: "Weekend - skipped" }), { status: 200, headers: corsHeaders });
-    }
-
     let actions = 0;
 
+    console.log(`📅 Running checks for ${dateStr} (day ${dayOfWeek}), time ${timeHHmm}`);
+
+    // 1️⃣ Clock-IN reminders: Only for workers with scheduled shifts (including weekend shifts)
     const clockInWorkers = await getWorkersForClockInReminder(supabase, timeHHmm, dayOfWeek);
     if (clockInWorkers.length) {
+      console.log(`📢 Sending clock-in reminders to ${clockInWorkers.length} workers`);
       actions += await handleClockInReminders(supabase, timeHHmm, siteDate, clockInWorkers);
     }
 
-    const clockOutWorkers = await getWorkersForClockOutReminder(supabase, timeHHmm, dayOfWeek);
+    // 2️⃣ Clock-OUT reminders: For ANY worker currently clocked in
+    const clockOutWorkers = await getWorkersForClockOutReminder(supabase, timeHHmm, dayOfWeek, siteDate);
     if (clockOutWorkers.length) {
+      console.log(`📢 Sending clock-out reminders to ${clockOutWorkers.length} workers`);
       actions += await handleClockOutReminders(supabase, timeHHmm, siteDate, clockOutWorkers);
     }
 
-    const autoClockoutWorkers = await getWorkersForAutoClockout(supabase, timeHHmm, dayOfWeek);
+    // 3️⃣ Auto-clockout: For ANY worker clocked in 30+ min past shift end
+    const autoClockoutWorkers = await getWorkersForAutoClockout(supabase, timeHHmm, dayOfWeek, siteDate);
     if (autoClockoutWorkers.length) {
+      console.log(`⏱️ Auto-clocking out ${autoClockoutWorkers.length} workers`);
       actions += await handleAutoClockOut(supabase, timeHHmm, siteDate, autoClockoutWorkers);
     }
 
-    // Check ALL active OT entries for 3-hour limit or geofence exits
+    // 4️⃣ ALWAYS check active OT entries for 3-hour limit or geofence exits (even on weekends)
+    console.log(`🔵 Checking active OT sessions...`);
     const otActions = await checkActiveOvertimeSessions(supabase, siteDate);
     actions += otActions;
 
@@ -143,39 +147,69 @@ async function getWorkersForClockInReminder(supabase: any, t: string, d: number)
   });
 }
 
-async function getWorkersForClockOutReminder(supabase: any, t: string, d: number) {
+async function getWorkersForClockOutReminder(supabase: any, t: string, d: number, date: Date) {
   const [h, m] = t.split(":").map(Number);
   const cur = h * 60 + m;
-  const { data: w } = await supabase
+  
+  // Get ALL active workers
+  const { data: workers } = await supabase
     .from("workers")
     .select("id,name,email,organization_id,shift_start,shift_end,shift_days")
     .eq("is_active", true);
-  if (!w) return [];
-  return w.filter((x: Worker) => {
-    if (!x.shift_days?.includes(d)) return false;
-    if (!x.shift_end) return false;
-    const [eh, em] = x.shift_end.split(":").map(Number);
+  if (!workers) return [];
+
+  const eligible: Worker[] = [];
+
+  for (const worker of workers) {
+    if (!worker.shift_end) continue;
+
+    // Check if worker is currently clocked in TODAY
+    const entry = await getTodayEntry(supabase, worker.id, date);
+    if (!entry || entry.clock_out) continue; // Not clocked in
+
+    const [eh, em] = worker.shift_end.split(":").map(Number);
     const eMin = eh * 60 + em;
     const diff = cur - eMin;
-    return diff === 0 || diff === 15;
-  });
+
+    // Send reminder at shift end (0 min) or 15 min after
+    if (diff === 0 || diff === 15) {
+      eligible.push(worker);
+    }
+  }
+
+  return eligible;
 }
 
-async function getWorkersForAutoClockout(supabase: any, t: string, d: number) {
+async function getWorkersForAutoClockout(supabase: any, t: string, d: number, date: Date) {
   const [h, m] = t.split(":").map(Number);
   const cur = h * 60 + m;
-  const { data: w } = await supabase
+  
+  // Get ALL active workers
+  const { data: workers } = await supabase
     .from("workers")
     .select("id,name,email,organization_id,shift_start,shift_end,shift_days")
     .eq("is_active", true);
-  if (!w) return [];
-  return w.filter((x: Worker) => {
-    if (!x.shift_days?.includes(d)) return false;
-    if (!x.shift_end) return false;
-    const [eh, em] = x.shift_end.split(":").map(Number);
+  if (!workers) return [];
+
+  const eligible: Worker[] = [];
+
+  for (const worker of workers) {
+    if (!worker.shift_end) continue;
+
+    // Check if worker is currently clocked in TODAY
+    const entry = await getTodayEntry(supabase, worker.id, date);
+    if (!entry || entry.clock_out) continue; // Not clocked in
+
+    const [eh, em] = worker.shift_end.split(":").map(Number);
     const end = eh * 60 + em;
-    return cur >= end + 30 && cur <= end + 40;
-  });
+
+    // Auto-clockout window: 30-40 min after shift end
+    if (cur >= end + 30 && cur <= end + 40) {
+      eligible.push(worker);
+    }
+  }
+
+  return eligible;
 }
 
 // ---------- Reminder Handlers ----------
