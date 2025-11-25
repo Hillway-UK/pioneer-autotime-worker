@@ -262,6 +262,16 @@ export default function Timesheets() {
       const clockInDate = new Date(newClockIn);
       const clockOutDate = new Date(newClockOut);
       
+      // Check if dates are the same day
+      const clockInDay = format(clockInDate, 'yyyy-MM-dd');
+      const clockOutDay = format(clockOutDate, 'yyyy-MM-dd');
+      
+      if (clockInDay !== clockOutDay) {
+        toast.error('Invalid date: Clock in and clock out must be on the same day. Please ensure both times are on the same date.');
+        return;
+      }
+      
+      // Check if clock out is after clock in
       if (clockOutDate <= clockInDate) {
         toast.error('Invalid hours: New clock out time must be greater than new clock in time. Please select a later clock out time.');
         return;
@@ -927,6 +937,9 @@ export default function Timesheets() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium">New Clock In Time (UK Time)</label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Note: Cannot select future dates. Both times must be on the same day.
+                </p>
                 <input
                   type="datetime-local"
                   value={newClockIn}
@@ -937,6 +950,9 @@ export default function Timesheets() {
               </div>
               <div>
                 <label className="text-sm font-medium">New Clock Out Time (UK Time)</label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Clock out time must be greater than clock in time on the same day.
+                </p>
                 <input
                   type="datetime-local"
                   value={newClockOut}
