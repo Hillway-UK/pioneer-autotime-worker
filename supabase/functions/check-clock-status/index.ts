@@ -136,15 +136,41 @@ async function getWorkersForClockInReminder(supabase: any, t: string, d: number)
     .from("workers")
     .select("id,name,email,organization_id,shift_start,shift_end,shift_days")
     .eq("is_active", true);
+  
+  console.log(`🔍 Clock-in check: Fetched ${w?.length || 0} active workers`);
+  
   if (!w) return [];
-  return w.filter((x: Worker) => {
-    if (!x.shift_days?.includes(d)) return false;
+  
+  // Filter for workers with today as a shift day
+  const todayWorkers = w.filter((x: Worker) => x.shift_days?.includes(d));
+  console.log(`📅 Workers with today (day ${d}) as shift day: ${todayWorkers.length}`);
+  
+  // Filter for workers within notification windows
+  const eligible = todayWorkers.filter((x: Worker) => {
     if (!x.shift_start) return false;
     const [sh, sm] = x.shift_start.split(":").map(Number);
     const sMin = sh * 60 + sm;
     const diff = cur - sMin;
-    return diff === -5 || diff === 0 || diff === 15;
+    
+    // Use 2-minute windows to account for cron drift
+    // -5 min window: -6 to -4
+    // 0 min window: -1 to +1
+    // +15 min window: +14 to +16
+    const in5MinWindow = diff >= -6 && diff <= -4;
+    const inStartWindow = diff >= -1 && diff <= 1;
+    const in15MinWindow = diff >= 14 && diff <= 16;
+    
+    if (in5MinWindow || inStartWindow || in15MinWindow) {
+      console.log(`✅ Worker ${x.name} (${x.id.slice(0,8)}...) eligible: shift_start=${x.shift_start}, diff=${diff} min`);
+      return true;
+    }
+    return false;
   });
+  
+  console.log(`📢 Workers within notification windows: ${eligible.length}`);
+  console.log(`⏰ Current time: ${t}, checking windows: [-6 to -4], [-1 to +1], [+14 to +16] minutes from shift_start`);
+  
+  return eligible;
 }
 
 async function getWorkersForClockOutReminder(supabase: any, t: string, d: number, date: Date) {
@@ -216,17 +242,39 @@ async function getWorkersForAutoClockout(supabase: any, t: string, d: number, da
 
 async function handleClockInReminders(supabase: any, t: string, date: Date, workers: Worker[]) {
   let sent = 0;
+  console.log(`📨 Processing clock-in reminders for ${workers.length} workers...`);
+  
   for (const w of workers) {
+    console.log(`\n👤 Processing worker: ${w.name} (${w.id.slice(0,8)}...), shift_start: ${w.shift_start}`);
+    
     const notif = `clock_in_${t.replace(":", "")}_shift${w.shift_start.replace(":", "")}`;
-    if (await checkNotificationSent(supabase, w.id, notif, date)) continue;
+    
+    // Check if notification already sent
+    const alreadySent = await checkNotificationSent(supabase, w.id, notif, date);
+    if (alreadySent) {
+      console.log(`⏭️  Skipping - notification already sent (type: ${notif})`);
+      continue;
+    }
+    
+    // Check if worker already clocked in
     const entry = await getTodayEntry(supabase, w.id, date);
-    if (entry) continue;
+    if (entry) {
+      console.log(`⏭️  Skipping - worker already clocked in (entry: ${entry.id.slice(0,8)}...)`);
+      continue;
+    }
+    
+    // Send notification
     const title = getClockInTitle(t, w.shift_start);
     const body = `Shift starts at ${w.shift_start}. Please clock in.`;
+    console.log(`📤 Sending notification: "${title}" - "${body}"`);
+    
     await sendNotification(supabase, w.id, title, body, notif, date);
     await logNotification(supabase, w.id, notif, date);
+    console.log(`✅ Notification sent successfully to ${w.name}`);
     sent++;
   }
+  
+  console.log(`\n📊 Clock-in reminders summary: ${sent} notifications sent`);
   return sent;
 }
 
