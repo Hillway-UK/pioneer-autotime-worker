@@ -43,7 +43,7 @@ interface Worker {
   organization_id: string;
   shift_start: string;
   shift_end: string;
-  shift_days: number[];
+  shift_days: (number | string)[];
 }
 
 interface ClockEntry {
@@ -141,8 +141,14 @@ async function getWorkersForClockInReminder(supabase: any, t: string, d: number)
   
   if (!w) return [];
   
-  // Filter for workers with today as a shift day
-  const todayWorkers = w.filter((x: Worker) => x.shift_days?.includes(d));
+  // Filter for workers with today as a shift day - handle both string and number types
+  const todayWorkers = w.filter((x: Worker) => {
+    const hasDay = x.shift_days?.includes(d) || x.shift_days?.includes(String(d));
+    if (x.shift_days) {
+      console.log(`🔍 Worker ${x.name}: shift_days=${JSON.stringify(x.shift_days)}, checking day=${d}, match=${hasDay}`);
+    }
+    return hasDay;
+  });
   console.log(`📅 Workers with today (day ${d}) as shift day: ${todayWorkers.length}`);
   
   // Filter for workers within notification windows
