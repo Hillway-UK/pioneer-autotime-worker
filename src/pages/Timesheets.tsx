@@ -257,6 +257,17 @@ export default function Timesheets() {
       return;
     }
 
+    // Validate that clock out is after clock in
+    if (newClockIn && newClockOut) {
+      const clockInDate = new Date(newClockIn);
+      const clockOutDate = new Date(newClockOut);
+      
+      if (clockOutDate <= clockInDate) {
+        toast.error('Invalid hours: New clock out time must be greater than new clock in time. Please select a later clock out time.');
+        return;
+      }
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) return;
@@ -920,6 +931,7 @@ export default function Timesheets() {
                   type="datetime-local"
                   value={newClockIn}
                   onChange={(e) => setNewClockIn(e.target.value)}
+                  max={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                   className="w-full p-2 border rounded-lg mt-1"
                 />
               </div>
@@ -929,6 +941,7 @@ export default function Timesheets() {
                   type="datetime-local"
                   value={newClockOut}
                   onChange={(e) => setNewClockOut(e.target.value)}
+                  max={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
                   className="w-full p-2 border rounded-lg mt-1"
                 />
               </div>
