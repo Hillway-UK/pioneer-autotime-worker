@@ -203,8 +203,8 @@ async function getWorkersForAutoClockout(supabase: any, t: string, d: number, da
     const [eh, em] = worker.shift_end.split(":").map(Number);
     const end = eh * 60 + em;
 
-    // Auto-clockout window: 30-40 min after shift end
-    if (cur >= end + 30 && cur <= end + 40) {
+    // Auto-clockout window: 0-10 min after shift end
+    if (cur >= end && cur <= end + 10) {
       eligible.push(worker);
     }
   }
@@ -275,7 +275,7 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
 
     const [eh, em] = w.shift_end.split(":").map(Number);
     const clockOut = new Date(date);
-    const totalMin = eh * 60 + em + 30;
+    const totalMin = eh * 60 + em;
     clockOut.setHours(Math.floor(totalMin / 60), totalMin % 60, 0, 0);
 
     const isBase = await isBaseShiftEntry(supabase, latestEntry.id);
@@ -291,13 +291,13 @@ async function handleAutoClockOut(supabase: any, t: string, date: Date, workers:
         auto_clocked_out: true,
         auto_clockout_type: "time_based",
         total_hours: totalHrs,
-        notes: `Auto clocked-out 30min after shift end ${w.shift_end}`,
+        notes: `Auto clocked-out at shift end ${w.shift_end}`,
       })
       .eq("id", latestEntry.id);
     performed++;
 
     const title = "Auto Clocked-Out - No Clock-Out Detected";
-    const body = `You were automatically clocked out at ${w.shift_end} +30min.\nIf incorrect, please submit a Time Amendment request.`;
+    const body = `You were automatically clocked out at ${w.shift_end}.\nIf incorrect, please submit a Time Amendment request.`;
     await sendNotification(supabase, w.id, title, body, "auto_clockout_time", date);
     await logNotification(supabase, w.id, "auto_clockout_time", date);
     await sendPushNotification(supabase, w.id, title, body);
