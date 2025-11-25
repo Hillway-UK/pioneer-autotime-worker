@@ -262,11 +262,14 @@ async function handleClockInReminders(supabase: any, t: string, date: Date, work
       continue;
     }
     
-    // Check if worker already clocked in
+    // Check if worker is currently clocked in (active entry)
     const entry = await getTodayEntry(supabase, w.id, date);
-    if (entry) {
-      console.log(`⏭️  Skipping - worker already clocked in (entry: ${entry.id.slice(0,8)}...)`);
+    if (entry && !entry.clock_out) {
+      console.log(`⏭️  Skipping - worker currently clocked in (active entry: ${entry.id.slice(0,8)}...)`);
       continue;
+    }
+    if (entry && entry.clock_out) {
+      console.log(`ℹ️  Worker has completed entry today, but not currently clocked in - will send reminder`);
     }
     
     // Send notification
