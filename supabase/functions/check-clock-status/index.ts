@@ -253,7 +253,8 @@ async function handleClockInReminders(supabase: any, t: string, date: Date, work
   for (const w of workers) {
     console.log(`\n👤 Processing worker: ${w.name} (${w.id.slice(0,8)}...), shift_start: ${w.shift_start}`);
     
-    const notif = `clock_in_${t.replace(":", "")}_shift${w.shift_start.replace(":", "")}`;
+    // Use consistent notification type for all reminders of the same shift (removes time component)
+    const notif = `clock_in_shift${w.shift_start.replace(":", "")}`;
     
     // Check if notification already sent
     const alreadySent = await checkNotificationSent(supabase, w.id, notif, date);
@@ -290,7 +291,8 @@ async function handleClockInReminders(supabase: any, t: string, date: Date, work
 async function handleClockOutReminders(supabase: any, t: string, date: Date, workers: Worker[]) {
   let sent = 0;
   for (const w of workers) {
-    const notif = `clock_out_${t.replace(":", "")}_shift${w.shift_end.replace(":", "")}`;
+    // Use consistent notification type for all reminders of the same shift (removes time component)
+    const notif = `clock_out_shift${w.shift_end.replace(":", "")}`;
     if (await checkNotificationSent(supabase, w.id, notif, date)) continue;
 
     const stillClocked = await isWorkerStillClockedIn(supabase, w.id, date);
