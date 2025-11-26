@@ -54,7 +54,7 @@ interface Job {
   longitude: number;
   geofence_radius: number;
   is_active: boolean;
-  geofence_enabled?: boolean;
+  geofence_enabled?: boolean | string; // Handle both boolean and string from database
 }
 
 interface ClockEntry {
@@ -942,8 +942,27 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
+      // Debug: Comprehensive geofence validation logging
+      const withinUK = isWithinUK(freshLocation.lat, freshLocation.lng);
+      console.log("🔍 Geofence validation (proceedWithClockInWithoutRAMS):", {
+        jobId: job.id,
+        jobName: job.name,
+        geofenceEnabled: job.geofence_enabled,
+        geofenceEnabledType: typeof job.geofence_enabled,
+        geofenceEnabledStrictCompare: job.geofence_enabled === false,
+        geofenceEnabledLooseCompare: job.geofence_enabled == false,
+        geofenceEnabledStringCompare: job.geofence_enabled === "false",
+        userLocation: { lat: freshLocation.lat, lng: freshLocation.lng },
+        isWithinUKResult: withinUK,
+        distance: Math.round(distance),
+        geofenceRadius: job.geofence_radius,
+      });
+
       // Validate geofence - conditional based on geofence_enabled
-      if (job.geofence_enabled !== false) {
+      // Handle both boolean false and string "false"
+      const isGeofenceDisabled = job.geofence_enabled === false || job.geofence_enabled === "false";
+      
+      if (!isGeofenceDisabled) {
         // Standard geofence radius check
         if (distance > job.geofence_radius) {
           toast.error(
@@ -1052,8 +1071,27 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
+      // Debug: Comprehensive geofence validation logging
+      const withinUK = isWithinUK(freshLocation.lat, freshLocation.lng);
+      console.log("🔍 Geofence validation (proceedWithClockIn):", {
+        jobId: job.id,
+        jobName: job.name,
+        geofenceEnabled: job.geofence_enabled,
+        geofenceEnabledType: typeof job.geofence_enabled,
+        geofenceEnabledStrictCompare: job.geofence_enabled === false,
+        geofenceEnabledLooseCompare: job.geofence_enabled == false,
+        geofenceEnabledStringCompare: job.geofence_enabled === "false",
+        userLocation: { lat: freshLocation.lat, lng: freshLocation.lng },
+        isWithinUKResult: withinUK,
+        distance: Math.round(distance),
+        geofenceRadius: job.geofence_radius,
+      });
+
       // Validate geofence - conditional based on geofence_enabled
-      if (job.geofence_enabled !== false) {
+      // Handle both boolean false and string "false"
+      const isGeofenceDisabled = job.geofence_enabled === false || job.geofence_enabled === "false";
+      
+      if (!isGeofenceDisabled) {
         // Standard geofence radius check
         if (distance > job.geofence_radius) {
           toast.error(
@@ -1178,8 +1216,27 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
+      // Debug: Comprehensive geofence validation logging
+      const withinUK = isWithinUK(freshLocation.lat, freshLocation.lng);
+      console.log("🔍 Geofence validation (handleClockOut):", {
+        jobId: job.id,
+        jobName: job.name,
+        geofenceEnabled: job.geofence_enabled,
+        geofenceEnabledType: typeof job.geofence_enabled,
+        geofenceEnabledStrictCompare: job.geofence_enabled === false,
+        geofenceEnabledLooseCompare: job.geofence_enabled == false,
+        geofenceEnabledStringCompare: job.geofence_enabled === "false",
+        userLocation: { lat: freshLocation.lat, lng: freshLocation.lng },
+        isWithinUKResult: withinUK,
+        distance: Math.round(distance),
+        geofenceRadius: job.geofence_radius,
+      });
+
       // Validate geofence - conditional based on geofence_enabled
-      if (job.geofence_enabled !== false) {
+      // Handle both boolean false and string "false"
+      const isGeofenceDisabled = job.geofence_enabled === false || job.geofence_enabled === "false";
+      
+      if (!isGeofenceDisabled) {
         // Standard geofence radius check
         if (distance > job.geofence_radius) {
           toast.error(
