@@ -54,6 +54,7 @@ interface Job {
   longitude: number;
   geofence_radius: number;
   is_active: boolean;
+  geofence_enabled?: boolean;
 }
 
 interface ClockEntry {
@@ -541,6 +542,23 @@ export default function ClockScreen() {
     });
   };
 
+  // UK approximate bounding box
+  const UK_BOUNDS = {
+    minLat: 49.9,  // Southern tip (Lizard Point area)
+    maxLat: 60.9,  // Northern tip (Shetland Islands)
+    minLng: -8.6,  // Western tip (Dingle Peninsula, Ireland border area)
+    maxLng: 1.8,   // Eastern tip (Lowestoft area)
+  };
+
+  const isWithinUK = (lat: number, lng: number): boolean => {
+    return (
+      lat >= UK_BOUNDS.minLat &&
+      lat <= UK_BOUNDS.maxLat &&
+      lng >= UK_BOUNDS.minLng &&
+      lng <= UK_BOUNDS.maxLng
+    );
+  };
+
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3; // Earth's radius in meters
     const φ1 = (lat1 * Math.PI) / 180;
@@ -924,13 +942,25 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
-      // Validate geofence
-      if (distance > job.geofence_radius) {
-        toast.error(
-          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
-        );
-        setLoading(false);
-        return;
+      // Validate geofence - conditional based on geofence_enabled
+      if (job.geofence_enabled !== false) {
+        // Standard geofence radius check
+        if (distance > job.geofence_radius) {
+          toast.error(
+            `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
+          );
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Geofence disabled - only check if within UK
+        if (!isWithinUK(freshLocation.lat, freshLocation.lng)) {
+          toast.error(
+            "You must be located within the United Kingdom to clock in for this job.",
+          );
+          setLoading(false);
+          return;
+        }
       }
 
       // Take photo
@@ -1022,13 +1052,25 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
-      // Validate geofence
-      if (distance > job.geofence_radius) {
-        toast.error(
-          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
-        );
-        setLoading(false);
-        return;
+      // Validate geofence - conditional based on geofence_enabled
+      if (job.geofence_enabled !== false) {
+        // Standard geofence radius check
+        if (distance > job.geofence_radius) {
+          toast.error(
+            `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
+          );
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Geofence disabled - only check if within UK
+        if (!isWithinUK(freshLocation.lat, freshLocation.lng)) {
+          toast.error(
+            "You must be located within the United Kingdom to clock in for this job.",
+          );
+          setLoading(false);
+          return;
+        }
       }
 
       // Take photo
@@ -1136,13 +1178,25 @@ export default function ClockScreen() {
         radius: job.geofence_radius,
       });
 
-      // Validate geofence
-      if (distance > job.geofence_radius) {
-        toast.error(
-          `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
-        );
-        setLoading(false);
-        return;
+      // Validate geofence - conditional based on geofence_enabled
+      if (job.geofence_enabled !== false) {
+        // Standard geofence radius check
+        if (distance > job.geofence_radius) {
+          toast.error(
+            `You are ${Math.round(distance)}m from the job site (GPS accuracy: ${Math.round(freshLocation.accuracy)}m). Please move closer to site.`,
+          );
+          setLoading(false);
+          return;
+        }
+      } else {
+        // Geofence disabled - only check if within UK
+        if (!isWithinUK(freshLocation.lat, freshLocation.lng)) {
+          toast.error(
+            "You must be located within the United Kingdom to clock out for this job.",
+          );
+          setLoading(false);
+          return;
+        }
       }
 
       // Take photo

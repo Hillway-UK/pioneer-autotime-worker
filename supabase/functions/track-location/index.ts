@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     // 1. Validate worker is clocked in
     const { data: clockEntry, error: entryError } = await supabase
       .from("clock_entries")
-      .select("*, jobs(latitude, longitude, geofence_radius), is_overtime")
+      .select("*, jobs(latitude, longitude, geofence_radius, geofence_enabled), is_overtime")
       .eq("id", payload.clock_entry_id)
       .eq("worker_id", payload.worker_id)
       .is("clock_out", null)
@@ -78,6 +78,32 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Invalid job data" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
+      });
+    }
+
+    // 2a. Skip geofence exit detection if geofence is disabled
+    if (job.geofence_enabled === false) {
+      console.log("Geofence disabled for this job - skipping exit detection, only logging location");
+      
+      // Still record location fix for audit trail
+      const shiftDate = new Date(clockEntry.clock_in).toISOString().split("T")[0];
+      await supabase.from("geofence_events").insert({
+        worker_id: payload.worker_id,
+        clock_entry_id: payload.clock_entry_id,
+        shift_date: shiftDate,
+        event_type: "location_fix",
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        accuracy: payload.accuracy,
+        distance_from_center: 0, // Not applicable when geofence disabled
+        job_radius: job.geofence_radius,
+        safe_out_threshold: 0,
+        timestamp: payload.timestamp,
+      });
+
+      return new Response(JSON.stringify({ status: "geofence_disabled", message: "Location logged, no exit detection" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
       });
     }
 
