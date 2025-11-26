@@ -31,7 +31,7 @@ export default function Timesheets() {
   const [newClockIn, setNewClockIn] = useState('');
   const [newClockOut, setNewClockOut] = useState('');
   const [expenseTypes, setExpenseTypes] = useState<any[]>([]);
-  const [selectedExpenses, setSelectedExpenses] = useState<{description: string, amount: number, expense_type_id?: string, isCustom?: boolean}[]>([]);
+  const [selectedExpenses, setSelectedExpenses] = useState<{description: string, amount: number, expense_type_id?: string, isCustom?: boolean, calculation_type?: string}[]>([]);
   const [existingAmendments, setExistingAmendments] = useState<any[]>([]);
   const [savingExpenses, setSavingExpenses] = useState(false);
   const [workerHourlyRate, setWorkerHourlyRate] = useState<number>(0);
@@ -639,12 +639,21 @@ export default function Timesheets() {
         // Pre-fill from expense type
         const expenseType = expenseTypes.find(et => et.id === value);
         if (expenseType) {
+          let finalAmount = parseFloat(expenseType.amount);
+          
+          // Calculate amount based on calculation_type
+          if (expenseType.calculation_type === 'hourly_multiplied' && selectedEntry) {
+            const entryHours = calculateHours(selectedEntry.clock_in, selectedEntry.clock_out, selectedEntry.total_hours);
+            finalAmount = expenseType.amount * entryHours;
+          }
+          
           updated[index] = { 
             ...updated[index], 
             isCustom: false, 
             expense_type_id: value, 
             description: expenseType.name,
-            amount: parseFloat(expenseType.amount) 
+            amount: finalAmount,
+            calculation_type: expenseType.calculation_type
           };
         }
       }
@@ -1007,7 +1016,7 @@ export default function Timesheets() {
                         <SelectContent className="bg-white z-[100]">
                           {expenseTypes.map((type) => (
                             <SelectItem key={type.id} value={type.id}>
-                              {type.name} (£{parseFloat(type.amount).toFixed(2)})
+                              {type.name} (£{parseFloat(type.amount).toFixed(2)} {type.calculation_type === 'hourly_multiplied' ? '- per hour' : '- flat rate'})
                             </SelectItem>
                           ))}
                           <SelectItem value="custom">Custom (Other)</SelectItem>
@@ -1031,7 +1040,14 @@ export default function Timesheets() {
 
                     {/* Amount Input */}
                     <div>
-                      <Label className="text-sm font-medium">Amount (£)</Label>
+                      <Label className="text-sm font-medium">
+                        Amount (£)
+                        {!expense.isCustom && expense.calculation_type === 'hourly_multiplied' && selectedEntry && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            (£{expenseTypes.find(et => et.id === expense.expense_type_id)?.amount || 0}/hr × {calculateHours(selectedEntry.clock_in, selectedEntry.clock_out, selectedEntry.total_hours).toFixed(2)} hrs)
+                          </span>
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -1039,6 +1055,8 @@ export default function Timesheets() {
                         onChange={(e) => updateExpense(index, 'amount', parseFloat(e.target.value) || 0)}
                         className="w-full mt-1"
                         placeholder="0.00"
+                        readOnly={!expense.isCustom && expense.calculation_type === 'hourly_multiplied'}
+                        disabled={!expense.isCustom && expense.calculation_type === 'hourly_multiplied'}
                       />
                     </div>
                   </div>

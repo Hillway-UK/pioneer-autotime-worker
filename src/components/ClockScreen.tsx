@@ -79,6 +79,7 @@ interface ExpenseType {
   name: string;
   amount: number;
   description?: string;
+  calculation_type?: string; // 'flat_rate' | 'hourly_multiplied'
 }
 
 export default function ClockScreen() {
@@ -1331,7 +1332,15 @@ export default function ClockScreen() {
 
   const totalSelectedExpenses = selectedExpenses.reduce((sum, id) => {
     const expense = expenseTypes.find((e) => e.id === id);
-    return sum + (expense?.amount || 0);
+    if (!expense) return sum;
+    
+    // Calculate amount based on calculation_type
+    if (expense.calculation_type === 'hourly_multiplied' && currentEntry) {
+      const hoursWorked = (Date.now() - new Date(currentEntry.clock_in).getTime()) / (1000 * 60 * 60);
+      return sum + (expense.amount * hoursWorked);
+    }
+    
+    return sum + (expense.amount || 0);
   }, 0);
 
   const handleExpenseDialogSubmit = async () => {
@@ -1356,11 +1365,18 @@ export default function ClockScreen() {
         for (const expenseId of selectedExpenses) {
           const expense = expenseTypes.find((e) => e.id === expenseId);
           if (expense) {
+            // Calculate final amount based on calculation_type
+            let finalAmount = expense.amount;
+            if (expense.calculation_type === 'hourly_multiplied') {
+              const totalHours = completedClockEntry.total_hours || 0;
+              finalAmount = expense.amount * totalHours;
+            }
+            
             const { error } = await supabase.from("additional_costs").insert({
               worker_id: worker.id,
               clock_entry_id: completedClockEntry.id,
               description: expense.name,
-              amount: expense.amount,
+              amount: finalAmount,
               expense_type_id: expense.id,
               cost_type: "other",
               date: new Date().toISOString().split("T")[0],
@@ -1670,33 +1686,40 @@ export default function ClockScreen() {
 
                 {expenseTypes.length > 0 ? (
                   <div className="space-y-2 mb-6">
-                    {expenseTypes.map((expense) => (
-                      <label
-                        key={expense.id}
-                        className="flex items-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          className="mr-3 w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
-                          checked={selectedExpenses.includes(expense.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedExpenses([...selectedExpenses, expense.id]);
-                            } else {
-                              setSelectedExpenses(selectedExpenses.filter((id) => id !== expense.id));
-                            }
-                          }}
-                          disabled={submittingExpenses}
-                        />
-                        <div className="flex-1">
-                          <div className="font-medium">{expense.name}</div>
-                          <div className="text-sm text-muted-foreground">£{expense.amount.toFixed(2)}</div>
-                          {expense.description && (
-                            <div className="text-xs text-muted-foreground">{expense.description}</div>
-                          )}
-                        </div>
-                      </label>
-                    ))}
+                    {expenseTypes.map((expense) => {
+                      const hoursWorked = currentEntry ? (Date.now() - new Date(currentEntry.clock_in).getTime()) / (1000 * 60 * 60) : 0;
+                      const displayAmount = expense.calculation_type === 'hourly_multiplied' 
+                        ? `£${expense.amount.toFixed(2)}/hr (£${(expense.amount * hoursWorked).toFixed(2)} total)`
+                        : `£${expense.amount.toFixed(2)}`;
+                      
+                      return (
+                        <label
+                          key={expense.id}
+                          className="flex items-center p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mr-3 w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+                            checked={selectedExpenses.includes(expense.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedExpenses([...selectedExpenses, expense.id]);
+                              } else {
+                                setSelectedExpenses(selectedExpenses.filter((id) => id !== expense.id));
+                              }
+                            }}
+                            disabled={submittingExpenses}
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium">{expense.name}</div>
+                            <div className="text-sm text-muted-foreground">{displayAmount}</div>
+                            {expense.description && (
+                              <div className="text-xs text-muted-foreground">{expense.description}</div>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
 
                     {selectedExpenses.length > 0 && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg">
