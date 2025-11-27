@@ -91,10 +91,14 @@ export default function ExportTimesheetDialog({
       const hours = entry.total_hours || 0;
       const earnings = hours * hourlyRate;
       
-      // Calculate expenses for this entry
+      // Calculate expenses for this entry and build expense details string
       const entryExpenses = entry.additional_costs?.reduce(
         (sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0
       ) || 0;
+      
+      const expenseDetails = entry.additional_costs?.map((cost: any) => 
+        `${cost.expense_name || 'Expense'} (£${parseFloat(cost.amount || 0).toFixed(2)})`
+      ).join(', ') || '-';
       
       totalHours += hours;
       totalExpenses += entryExpenses;
@@ -113,7 +117,7 @@ export default function ExportTimesheetDialog({
         entry.clock_out ? format(new Date(entry.clock_out), 'h:mm a') : 'In Progress',
         hours.toFixed(2),
         `£${hourlyRate.toFixed(2)}`,
-        entryExpenses > 0 ? `£${entryExpenses.toFixed(2)}` : '-',
+        expenseDetails,
         note
       ]);
     });
@@ -134,7 +138,7 @@ export default function ExportTimesheetDialog({
       { wch: 12 },  // Clock Out
       { wch: 12 },  // Total Hours
       { wch: 10 },  // Rate
-      { wch: 12 },  // Expenses
+      { wch: 30 },  // Expenses
       { wch: 30 }   // Note
     ];
 
@@ -191,6 +195,10 @@ export default function ExportTimesheetDialog({
       const entryExpenses = entry.additional_costs?.reduce(
         (sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0
       ) || 0;
+      
+      const expenseDetails = entry.additional_costs?.map((cost: any) => 
+        `${cost.expense_name || 'Expense'} (£${parseFloat(cost.amount || 0).toFixed(2)})`
+      ).join(', ') || '-';
 
       let note = '';
       if (entry.manual_entry) note = 'Manual Entry';
@@ -205,7 +213,7 @@ export default function ExportTimesheetDialog({
         entry.clock_out ? format(new Date(entry.clock_out), 'h:mm a') : 'In Progress',
         hours.toFixed(2),
         `£${hourlyRate.toFixed(2)}`,
-        entryExpenses > 0 ? `£${entryExpenses.toFixed(2)}` : '-',
+        expenseDetails,
         note
       ];
     });
