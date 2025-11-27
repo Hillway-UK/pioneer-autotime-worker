@@ -80,17 +80,25 @@ export default function ExportTimesheetDialog({
       ['Name:', workerName],
       ['Date Range:', dateRangeStr],
       [],
-      ['Date', 'Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Note']
+      ['Date', 'Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Expenses', 'Note']
     ];
 
     let totalHours = 0;
     let totalEarnings = 0;
+    let totalExpenses = 0;
 
     entries.forEach(entry => {
       const hours = entry.total_hours || 0;
       const earnings = hours * hourlyRate;
+      
+      // Calculate expenses for this entry
+      const entryExpenses = entry.additional_costs?.reduce(
+        (sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0
+      ) || 0;
+      
       totalHours += hours;
-      totalEarnings += earnings;
+      totalExpenses += entryExpenses;
+      totalEarnings += earnings + entryExpenses;
 
       let note = '';
       if (entry.manual_entry) note = 'Manual Entry';
@@ -105,13 +113,15 @@ export default function ExportTimesheetDialog({
         entry.clock_out ? format(new Date(entry.clock_out), 'h:mm a') : 'In Progress',
         hours.toFixed(2),
         `£${hourlyRate.toFixed(2)}`,
+        entryExpenses > 0 ? `£${entryExpenses.toFixed(2)}` : '-',
         note
       ]);
     });
 
     rows.push([]);
-    rows.push(['', '', '', '', 'Total Hours:', totalHours.toFixed(2), '', '']);
-    rows.push(['', '', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']);
+    rows.push(['', '', '', '', '', 'Total Hours:', totalHours.toFixed(2), '', '']);
+    rows.push(['', '', '', '', '', 'Total Expenses:', `£${totalExpenses.toFixed(2)}`, '', '']);
+    rows.push(['', '', '', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']);
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     
@@ -124,6 +134,7 @@ export default function ExportTimesheetDialog({
       { wch: 12 },  // Clock Out
       { wch: 12 },  // Total Hours
       { wch: 10 },  // Rate
+      { wch: 12 },  // Expenses
       { wch: 30 }   // Note
     ];
 
@@ -177,7 +188,9 @@ export default function ExportTimesheetDialog({
     // Prepare table data
     const tableData = entries.map(entry => {
       const hours = entry.total_hours || 0;
-      const earnings = hours * hourlyRate;
+      const entryExpenses = entry.additional_costs?.reduce(
+        (sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0
+      ) || 0;
 
       let note = '';
       if (entry.manual_entry) note = 'Manual Entry';
@@ -192,27 +205,36 @@ export default function ExportTimesheetDialog({
         entry.clock_out ? format(new Date(entry.clock_out), 'h:mm a') : 'In Progress',
         hours.toFixed(2),
         `£${hourlyRate.toFixed(2)}`,
+        entryExpenses > 0 ? `£${entryExpenses.toFixed(2)}` : '-',
         note
       ];
     });
 
     let totalHours = 0;
     let totalEarnings = 0;
+    let totalExpenses = 0;
+    
     entries.forEach(entry => {
       const hours = entry.total_hours || 0;
+      const entryExpenses = entry.additional_costs?.reduce(
+        (sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0
+      ) || 0;
+      
       totalHours += hours;
-      totalEarnings += hours * hourlyRate;
+      totalExpenses += entryExpenses;
+      totalEarnings += (hours * hourlyRate) + entryExpenses;
     });
 
     autoTable(doc, {
-      head: [['Date', 'Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Note']],
+      head: [['Date', 'Job Site Code', 'Job Name', 'Clock In', 'Clock Out', 'Total Hours', 'Rate', 'Expenses', 'Note']],
       body: tableData,
       startY: 45,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [128, 0, 0] }, // Maroon color
       foot: [
-        ['', '', '', '', 'Total Hours:', totalHours.toFixed(2), '', ''],
-        ['', '', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']
+        ['', '', '', '', '', 'Total Hours:', totalHours.toFixed(2), '', ''],
+        ['', '', '', '', '', 'Total Expenses:', `£${totalExpenses.toFixed(2)}`, '', ''],
+        ['', '', '', '', '', 'Total Earnings:', `£${totalEarnings.toFixed(2)}`, '', '']
       ],
       footStyles: { 
         fillColor: [128, 0, 0], // Maroon background
