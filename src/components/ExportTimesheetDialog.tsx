@@ -96,9 +96,10 @@ export default function ExportTimesheetDialog({
         (sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0
       ) || 0;
       
-      const expenseDetails = entry.additional_costs?.map((cost: any) => 
-        `${cost.expense_name || 'Expense'} (£${parseFloat(cost.amount || 0).toFixed(2)})`
-      ).join(', ') || '-';
+      const expenseDetails = entry.additional_costs?.map((cost: any) => {
+        const expenseName = cost.expense_types?.name || cost.description || 'Expense';
+        return `${expenseName} (£${parseFloat(cost.amount || 0).toFixed(2)})`;
+      }).join(', ') || '-';
       
       totalHours += hours;
       totalExpenses += entryExpenses;
@@ -196,9 +197,10 @@ export default function ExportTimesheetDialog({
         (sum: number, cost: any) => sum + parseFloat(cost.amount || 0), 0
       ) || 0;
       
-      const expenseDetails = entry.additional_costs?.map((cost: any) => 
-        `${cost.expense_name || 'Expense'} (£${parseFloat(cost.amount || 0).toFixed(2)})`
-      ).join(', ') || '-';
+      const expenseDetails = entry.additional_costs?.map((cost: any) => {
+        const expenseName = cost.expense_types?.name || cost.description || 'Expense';
+        return `${expenseName} (£${parseFloat(cost.amount || 0).toFixed(2)})`;
+      }).join(', ') || '-';
 
       let note = '';
       if (entry.manual_entry) note = 'Manual Entry';

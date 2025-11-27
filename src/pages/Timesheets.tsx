@@ -681,7 +681,11 @@ export default function Timesheets() {
         .select(`
           *,
           jobs (name, code),
-          additional_costs (amount, description)
+          additional_costs (
+            amount, 
+            description,
+            expense_types (name)
+          )
         `)
         .eq('worker_id', contextWorker.id)
         .gte('clock_in', startDate.toISOString())
