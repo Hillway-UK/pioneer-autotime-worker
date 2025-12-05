@@ -5,7 +5,7 @@ import { format, startOfWeek, endOfWeek, differenceInMinutes, parseISO, addDays 
 import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 
 const UK_TIMEZONE = 'Europe/London';
-import { Calendar, Clock, Edit2, Plus, ChevronLeft, ChevronRight, AlertCircle, DollarSign, ArrowLeft, Construction, Save, Download } from 'lucide-react';
+import { Calendar, Clock, Edit2, Plus, ChevronLeft, ChevronRight, AlertCircle, DollarSign, ArrowLeft, Construction, Save, Download, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -52,6 +52,7 @@ export default function Timesheets() {
   const [submittingManual, setSubmittingManual] = useState(false);
   const [worker, setWorker] = useState<any>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportDocumentType, setExportDocumentType] = useState<'timesheet' | 'invoice'>('timesheet');
 
   // Set worker data from context
   useEffect(() => {
@@ -766,16 +767,31 @@ export default function Timesheets() {
             </button>
           </div>
           
-          {/* Export Button */}
-          <div className="flex justify-center mt-2">
+          {/* Export Buttons */}
+          <div className="flex justify-center mt-2 gap-2">
             <Button
-              onClick={() => setShowExportDialog(true)}
+              onClick={() => {
+                setExportDocumentType('timesheet');
+                setShowExportDialog(true);
+              }}
               variant="outline"
               size="sm"
               className="gap-2"
             >
               <Download className="h-4 w-4" />
               Export Timesheet
+            </Button>
+            <Button
+              onClick={() => {
+                setExportDocumentType('invoice');
+                setShowExportDialog(true);
+              }}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Download Invoice
             </Button>
           </div>
         </div>
@@ -1118,6 +1134,7 @@ export default function Timesheets() {
         workerId={worker?.id || ''}
         onExport={fetchEntriesForExport}
         hourlyRate={workerHourlyRate}
+        documentType={exportDocumentType}
       />
     </div>
   );
