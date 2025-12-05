@@ -19,6 +19,7 @@ interface ExportTimesheetDialogProps {
   workerId: string;
   onExport: (startDate: Date, endDate: Date) => Promise<any[]>;
   hourlyRate: number;
+  documentType?: 'timesheet' | 'invoice';
 }
 
 type RangeType = 'weekly' | 'monthly' | 'custom';
@@ -30,8 +31,12 @@ export default function ExportTimesheetDialog({
   workerName,
   workerId,
   onExport,
-  hourlyRate
+  hourlyRate,
+  documentType = 'timesheet'
 }: ExportTimesheetDialogProps) {
+  const isInvoice = documentType === 'invoice';
+  const documentTitle = isInvoice ? 'Invoice' : 'My Timesheet';
+  const filePrefix = isInvoice ? 'invoice' : 'timesheet';
   const [rangeType, setRangeType] = useState<RangeType>('weekly');
   const [exportFormat, setExportFormat] = useState<ExportFormat>('excel');
   const [customStartDate, setCustomStartDate] = useState<Date>();
@@ -75,7 +80,7 @@ export default function ExportTimesheetDialog({
     
     // Prepare data rows
     const rows = [
-      ['My Timesheet'],
+      [documentTitle],
       [],
       ['Name:', workerName],
       ['Date Range:', dateRangeStr],
@@ -174,7 +179,7 @@ export default function ExportTimesheetDialog({
     XLSX.utils.book_append_sheet(wb, ws, 'Timesheet');
     
     const { start, end } = getDateRange();
-    const filename = `timesheet_${workerName.replace(/\s+/g, '_')}_${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}.xlsx`;
+    const filename = `${filePrefix}_${workerName.replace(/\s+/g, '_')}_${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}.xlsx`;
     XLSX.writeFile(wb, filename);
   };
 
@@ -183,7 +188,7 @@ export default function ExportTimesheetDialog({
     
     // Title
     doc.setFontSize(18);
-    doc.text('My Timesheet', 14, 20);
+    doc.text(documentTitle, 14, 20);
     
     // Worker info
     doc.setFontSize(11);
@@ -255,7 +260,7 @@ export default function ExportTimesheetDialog({
     });
 
     const { start, end } = getDateRange();
-    const filename = `timesheet_${workerName.replace(/\s+/g, '_')}_${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}.pdf`;
+    const filename = `${filePrefix}_${workerName.replace(/\s+/g, '_')}_${format(start, 'yyyy-MM-dd')}_to_${format(end, 'yyyy-MM-dd')}.pdf`;
     doc.save(filename);
   };
 
@@ -296,7 +301,7 @@ export default function ExportTimesheetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Export Timesheet</DialogTitle>
+          <DialogTitle>{isInvoice ? 'Download Invoice' : 'Export Timesheet'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
