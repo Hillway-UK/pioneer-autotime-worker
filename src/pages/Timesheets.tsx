@@ -901,7 +901,7 @@ export default function Timesheets() {
                       
                       {/* Action Buttons */}
                       <div className="mt-3 flex space-x-2">
-                        {entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && (() => {
+                        {entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && isEntryInCurrentWeek(entry.clock_in) && (() => {
                           const pendingAmendment = getPendingAmendmentForEntry(entry.id);
                           const amendment = getAmendmentForEntry(entry.id);
                           
@@ -931,6 +931,13 @@ export default function Timesheets() {
                           
                           return null;
                         })()}
+                        
+                        {/* Show locked message for amendments from past weeks */}
+                        {entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && !isEntryInCurrentWeek(entry.clock_in) && (
+                          <span className="text-xs text-muted-foreground italic">
+                            Amendments locked
+                          </span>
+                        )}
                         
                         {!entry.additional_costs?.length && entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && isEntryInCurrentWeek(entry.clock_in) && (
                           <button
