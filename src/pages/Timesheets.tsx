@@ -18,6 +18,17 @@ import { useWorker } from '@/contexts/WorkerContext';
 import ExportTimesheetDialog from '@/components/ExportTimesheetDialog';
 import { formatOvertimeStatus, getOvertimeStatusColor } from '@/lib/overtimeUtils';
 
+// Check if entry is within current calendar week (eligible for expense addition)
+const isEntryInCurrentWeek = (entryDate: string): boolean => {
+  const now = new Date();
+  const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+  const currentWeekEnd = endOfWeek(now, { weekStartsOn: 1 }); // Sunday
+  
+  const entryDateTime = parseISO(entryDate);
+  
+  return entryDateTime >= currentWeekStart && entryDateTime <= currentWeekEnd;
+};
+
 export default function Timesheets() {
   const navigate = useNavigate();
   const { worker: contextWorker, loading: workerLoading } = useWorker();
@@ -921,13 +932,20 @@ export default function Timesheets() {
                           return null;
                         })()}
                         
-                        {!entry.additional_costs?.length && entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && (
+                        {!entry.additional_costs?.length && entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && isEntryInCurrentWeek(entry.clock_in) && (
                           <button
                             onClick={() => openExpenseDialog(entry)}
                             className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
                           >
                             Add Expense
                           </button>
+                        )}
+                        
+                        {/* Show locked message for past weeks without expenses */}
+                        {!entry.additional_costs?.length && entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && !isEntryInCurrentWeek(entry.clock_in) && (
+                          <span className="text-xs text-muted-foreground italic">
+                            Expenses locked
+                          </span>
                         )}
                       </div>
                     </div>
