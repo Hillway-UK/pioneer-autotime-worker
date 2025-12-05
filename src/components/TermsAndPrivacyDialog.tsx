@@ -44,7 +44,7 @@ export default function TermsAndPrivacyDialog({ open, onAccepted, workerEmail }:
         .update({
           terms_accepted: true,
           terms_accepted_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('email', workerEmail);
 
       if (error) throw error;
@@ -281,7 +281,7 @@ export default function TermsAndPrivacyDialog({ open, onAccepted, workerEmail }:
                   disabled={!agreed || loading}
                   className="flex-1"
                 >
-                  {loading ? <LoadingSpinner size="sm" /> : 'Agree & Continue'}
+                  {loading ? <LoadingSpinner /> : 'Agree & Continue'}
                 </Button>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import FirstLoginPasswordDialog from '@/components/FirstLoginPasswordDialog';
+import TermsAndPrivacyDialog from '@/components/TermsAndPrivacyDialog';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface ProtectedRouteProps {
@@ -14,6 +15,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [mustAcceptTerms, setMustAcceptTerms] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
             setSession(null);
             setUser(null);
             setMustChangePassword(false);
+            setMustAcceptTerms(false);
             setLoading(false);
             return;
           }
@@ -49,7 +52,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
                 
                 if (session?.user) {
                   setTimeout(() => {
-                    checkPasswordChangeRequired(session.user.email!);
+                    checkWorkerStatus(session.user.email!);
                   }, 0);
                 }
               }
@@ -61,7 +64,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
             
             if (session?.user) {
               setTimeout(() => {
-                checkPasswordChangeRequired(session.user.email!);
+                checkWorkerStatus(session.user.email!);
               }, 0);
             }
           }
@@ -78,7 +81,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
         
         if (session?.user) {
           setTimeout(() => {
-            checkPasswordChangeRequired(session.user.email!);
+            checkWorkerStatus(session.user.email!);
           }, 0);
         }
       }
@@ -93,19 +96,22 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     };
   }, []);
 
-  const checkPasswordChangeRequired = async (email: string) => {
+  const checkWorkerStatus = async (email: string) => {
     try {
+      // Using raw query since terms_accepted column may not be in generated types yet
       const { data, error } = await supabase
         .from('workers')
-        .select('must_change_password')
+        .select('must_change_password, terms_accepted')
         .eq('email', email)
-        .maybeSingle();
+        .maybeSingle() as any;
 
       if (!error && data) {
         setMustChangePassword(data.must_change_password || false);
+        // Show terms dialog if terms_accepted is false or null
+        setMustAcceptTerms(!data.terms_accepted);
       }
     } catch (error) {
-      console.error('Error checking password change requirement:', error);
+      console.error('Error checking worker status:', error);
     }
   };
 
@@ -130,7 +136,16 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   return (
     <>
-      {mustChangePassword && <FirstLoginPasswordDialog open={mustChangePassword} />}
+      {mustAcceptTerms && (
+        <TermsAndPrivacyDialog 
+          open={mustAcceptTerms} 
+          workerEmail={user.email || ''} 
+          onAccepted={() => setMustAcceptTerms(false)} 
+        />
+      )}
+      {!mustAcceptTerms && mustChangePassword && (
+        <FirstLoginPasswordDialog open={mustChangePassword} />
+      )}
       {children}
     </>
   );
