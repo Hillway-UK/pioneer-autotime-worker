@@ -17,6 +17,9 @@ import OrganizationLogo from '@/components/OrganizationLogo';
 import { useWorker } from '@/contexts/WorkerContext';
 import ExportTimesheetDialog from '@/components/ExportTimesheetDialog';
 import { formatOvertimeStatus, getOvertimeStatusColor } from '@/lib/overtimeUtils';
+import UnifiedAmendmentDialog from '@/components/UnifiedAmendmentDialog';
+import { useAmendmentRequests } from '@/hooks/useAmendmentRequests';
+import { AmendmentRequest } from '@/types/amendment';
 
 // Check if entry is within current calendar week (eligible for expense addition)
 const isEntryInCurrentWeek = (entryDate: string): boolean => {
@@ -49,6 +52,10 @@ export default function Timesheets() {
   const [organizationName, setOrganizationName] = useState<string>('');
   const [organizationLogoUrl, setOrganizationLogoUrl] = useState<string | null>(null);
   const [editingAmendmentId, setEditingAmendmentId] = useState<string | null>(null);
+  
+  // New unified amendment system
+  const [showUnifiedDialog, setShowUnifiedDialog] = useState(false);
+  const { amendmentRequests, fetchAmendmentRequests, getPendingRequestsForEntry } = useAmendmentRequests();
   
   // Manual entry state
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -196,7 +203,11 @@ export default function Timesheets() {
     fetchEntries();
     fetchAmendments();
     fetchExpenseTypes();
-  }, [currentWeek]);
+    // Fetch new unified amendment requests
+    if (contextWorker?.id) {
+      fetchAmendmentRequests(contextWorker.id);
+    }
+  }, [currentWeek, contextWorker?.id]);
 
   // Group entries by day
   const entriesByDay = entries.reduce((acc, entry) => {
@@ -900,12 +911,32 @@ export default function Timesheets() {
                       )}
                       
                       {/* Action Buttons */}
-                      <div className="mt-3 flex space-x-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {entry.clock_out && !(entry.is_overtime && entry.ot_status === 'rejected') && isEntryInCurrentWeek(entry.clock_in) && (() => {
+                          // Check for new unified amendment requests
+                          const pendingUnifiedRequests = getPendingRequestsForEntry(entry.id);
+                          const hasPendingUnified = pendingUnifiedRequests.length > 0;
+                          
+                          // Also check legacy amendments
                           const pendingAmendment = getPendingAmendmentForEntry(entry.id);
                           const amendment = getAmendmentForEntry(entry.id);
                           
-                          // Show "Update Amendment" if there's a pending amendment
+                          // Show unified dialog button
+                          if (hasPendingUnified) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setSelectedEntry(entry);
+                                  setShowUnifiedDialog(true);
+                                }}
+                                className="text-sm px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded-lg text-blue-700"
+                              >
+                                Update Request
+                              </button>
+                            );
+                          }
+                          
+                          // Legacy: Show "Update Amendment" if there's a pending legacy amendment
                           if (pendingAmendment) {
                             return (
                               <button
@@ -917,19 +948,18 @@ export default function Timesheets() {
                             );
                           }
                           
-                          // Show "Request Amendment" if no amendment or if last was approved/rejected
-                          if (!amendment || amendment.status === 'approved' || amendment.status === 'rejected') {
-                            return (
-                              <button
-                                onClick={() => openAmendmentDialog(entry)}
-                                className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
-                              >
-                                Request Amendment
-                              </button>
-                            );
-                          }
-                          
-                          return null;
+                          // Show new unified "Request Amendment / OT" button
+                          return (
+                            <button
+                              onClick={() => {
+                                setSelectedEntry(entry);
+                                setShowUnifiedDialog(true);
+                              }}
+                              className="text-sm px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700"
+                            >
+                              Request Amendment / OT
+                            </button>
+                          );
                         })()}
                         
                         {/* Show locked message for amendments from past weeks */}
@@ -1161,6 +1191,21 @@ export default function Timesheets() {
         hourlyRate={workerHourlyRate}
         documentType={exportDocumentType}
       />
+
+      {/* Unified Amendment / OT Request Dialog */}
+      {selectedEntry && worker?.id && (
+        <UnifiedAmendmentDialog
+          open={showUnifiedDialog}
+          onOpenChange={setShowUnifiedDialog}
+          entry={selectedEntry}
+          workerId={worker.id}
+          pendingRequests={getPendingRequestsForEntry(selectedEntry.id)}
+          onSuccess={() => {
+            fetchAmendmentRequests(worker.id);
+            fetchEntries();
+          }}
+        />
+      )}
     </div>
   );
 }
